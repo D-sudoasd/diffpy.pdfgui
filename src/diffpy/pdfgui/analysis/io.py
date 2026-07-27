@@ -10,9 +10,10 @@ import numpy as np
 
 from diffpy.pdfgui.analysis.models import PDFSeries
 
-_NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
+_NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eEdD][-+]?\d+)?"
 _METADATA_PATTERN = re.compile(rf"\b([A-Za-z][\w.-]*)\s*=\s*({_NUMBER})\b")
 _SPLIT_PATTERN = re.compile(r"[\s,]+")
+_COMMENT_MARKERS = ("//", "#", ";")
 
 
 def load_pdf_data(
@@ -31,11 +32,7 @@ def load_pdf_data(
     """
 
     path = Path(filename).expanduser().resolve()
-    if observed_column < 0:
-        raise ValueError("observed_column cannot be negative")
-    for label, column in (("calculated_column", calculated_column), ("sigma_column", sigma_column)):
-        if column is not None and column < 0:
-            raise ValueError(f"{label} cannot be negative")
+    _validate_columns(observed_column, calculated_column, sigma_column)
 
     required_columns = [0, observed_column]
     if calculated_column is not None:
@@ -53,13 +50,16 @@ def load_pdf_data(
             if not line:
                 continue
             _update_metadata(metadata, line)
-            if line.startswith(("#", ";", "//")):
+            if line.startswith(_COMMENT_MARKERS):
+                continue
+            line = _strip_inline_comment(line)
+            if not line:
                 continue
             tokens = [token for token in _SPLIT_PATTERN.split(line) if token]
             if not tokens:
                 continue
             try:
-                values = [float(token) for token in tokens]
+                values = [_parse_float(token) for token in tokens]
             except ValueError as error:
                 if numeric_data_started:
                     raise ValueError(f"malformed numeric row at {path}:{line_number}") from error
@@ -90,10 +90,44 @@ def load_pdf_data(
     )
 
 
+def _validate_columns(
+    observed_column: int,
+    calculated_column: int | None,
+    sigma_column: int | None,
+) -> None:
+    selected = {
+        "r": 0,
+        "observed_column": observed_column,
+        "calculated_column": calculated_column,
+        "sigma_column": sigma_column,
+    }
+    for label, column in selected.items():
+        if column is not None and column < 0:
+            raise ValueError(f"{label} cannot be negative")
+    active = [(label, column) for label, column in selected.items() if column is not None]
+    columns = [column for _, column in active]
+    if len(columns) != len(set(columns)):
+        description = ", ".join(f"{label}={column + 1}" for label, column in active)
+        raise ValueError(f"r, observed, calculated, and uncertainty columns must be distinct ({description})")
+
+
+def _strip_inline_comment(line: str) -> str:
+    cut = len(line)
+    for marker in _COMMENT_MARKERS:
+        position = line.find(marker)
+        if position > 0 and line[position - 1].isspace():
+            cut = min(cut, position)
+    return line[:cut].rstrip()
+
+
+def _parse_float(token: str) -> float:
+    return float(token.replace("D", "E").replace("d", "e"))
+
+
 def _update_metadata(metadata: dict[str, Any], line: str) -> None:
     for match in _METADATA_PATTERN.finditer(line):
         key = match.group(1)
-        value = float(match.group(2))
+        value = _parse_float(match.group(2))
         metadata[key] = value
 
 
