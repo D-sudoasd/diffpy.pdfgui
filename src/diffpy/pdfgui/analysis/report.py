@@ -3,9 +3,16 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from diffpy.pdfgui.analysis.models import PDFAnalysis
+
+_MAX_AI_DEPTH = 5
+_MAX_AI_ITEMS = 32
+_MAX_AI_STRING = 500
+_MAX_AI_QUESTION = 4000
+_PATH_KEY_PARTS = ("path", "file", "folder", "directory", "source")
 
 
 def analysis_to_markdown(analysis: PDFAnalysis) -> str:
@@ -117,7 +124,8 @@ def analysis_to_markdown(analysis: PDFAnalysis) -> str:
 
     if analysis.metadata:
         lines.extend(["", "## Metadata", "", "```json"])
-        lines.append(json.dumps(_json_safe(analysis.metadata), ensure_ascii=False, indent=2, sort_keys=True))
+        metadata = analysis.to_dict()["metadata"]
+        lines.append(json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False))
         lines.append("```")
 
     lines.extend(
@@ -127,9 +135,8 @@ def analysis_to_markdown(analysis: PDFAnalysis) -> str:
             "",
             (
                 "Feature detection and residual statistics identify numerical patterns. Phase identity, "
-                "coordination, "
-                "bond assignment, defect chemistry, and model selection require the experimental context and an "
-                "explicit structural model."
+                "coordination, bond assignment, defect chemistry, and model selection require the experimental "
+                "context and an explicit structural model."
             ),
             "",
         ]
@@ -145,23 +152,24 @@ def build_ai_prompt(
 ) -> str:
     """Build a bounded prompt from computed diagnostics, without raw arrays."""
 
-    payload = analysis.to_dict()
+    payload = _bounded_ai_payload(analysis)
+    safe_language = " ".join(str(language).split())[:80] or "English"
     prompt = f"""You are assisting with atomic pair distribution function (PDF) analysis.
 Use only the supplied diagnostics and metadata. Separate numerical observations from structural hypotheses.
 Do not assign phases, coordination environments, bond identities, or defect mechanisms unless the supplied metadata
-or question provides an explicit structural basis. Treat detected positive and negative features as signal
-features,
+or question provides an explicit structural basis. Treat detected positive and negative features as signal features,
 not automatic atom-pair assignments. When discussing residuals, identify the relevant r interval and propose checks
 that can be performed in PDFgui. State which additional experimental or model information would be required for any
-stronger conclusion. Respond in {language}.
+stronger conclusion. Respond in {safe_language}.
 
 Computed diagnostics:
 ```json
-{json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)}
+{json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False)}
 ```
 """
-    if question.strip():
-        prompt += f"\nUser question:\n{question.strip()}\n"
+    cleaned_question = question.strip()[:_MAX_AI_QUESTION]
+    if cleaned_question:
+        prompt += f"\nUser question:\n{cleaned_question}\n"
     else:
         prompt += (
             "\nTask:\nSummarize data quality, the main signal features, fit-residual behavior, and the next three "
@@ -171,9 +179,59 @@ Computed diagnostics:
 
 
 def analysis_to_json(analysis: PDFAnalysis, *, indent: int = 2) -> str:
-    """Serialize an analysis result to JSON."""
+    """Serialize an analysis result to strict JSON."""
 
-    return json.dumps(analysis.to_dict(), ensure_ascii=False, indent=indent, sort_keys=True) + "\n"
+    return json.dumps(
+        analysis.to_dict(),
+        ensure_ascii=False,
+        indent=indent,
+        sort_keys=True,
+        allow_nan=False,
+    ) + "\n"
+
+
+def _bounded_ai_payload(analysis: PDFAnalysis) -> dict[str, Any]:
+    payload = analysis.to_dict()
+    source = payload.get("source")
+    if source:
+        payload["source"] = Path(str(source)).name
+    payload["metadata"] = _bounded_ai_value(payload.get("metadata", {}), depth=0)
+    payload["request_scope"] = {
+        "raw_arrays_included": False,
+        "source_path_reduced_to_basename": True,
+        "metadata_items_limited": _MAX_AI_ITEMS,
+    }
+    return payload
+
+
+def _bounded_ai_value(value: Any, *, depth: int, key: str = "") -> Any:
+    if depth >= _MAX_AI_DEPTH:
+        return "<maximum depth reached>"
+    lowered_key = key.lower()
+    if isinstance(value, str):
+        text = value
+        if any(part in lowered_key for part in _PATH_KEY_PARTS):
+            text = Path(text).name
+        if len(text) > _MAX_AI_STRING:
+            return text[:_MAX_AI_STRING] + "…"
+        return text
+    if isinstance(value, dict):
+        items = sorted(value.items(), key=lambda item: str(item[0]))
+        bounded = {
+            str(item_key): _bounded_ai_value(item_value, depth=depth + 1, key=str(item_key))
+            for item_key, item_value in items[:_MAX_AI_ITEMS]
+        }
+        if len(items) > _MAX_AI_ITEMS:
+            bounded["__truncated_items__"] = len(items) - _MAX_AI_ITEMS
+        return bounded
+    if isinstance(value, list):
+        bounded_list = [
+            _bounded_ai_value(item, depth=depth + 1, key=key) for item in value[:_MAX_AI_ITEMS]
+        ]
+        if len(value) > _MAX_AI_ITEMS:
+            bounded_list.append(f"<truncated {len(value) - _MAX_AI_ITEMS} item(s)>")
+        return bounded_list
+    return value
 
 
 def _number(value: float | None) -> str:
@@ -184,13 +242,3 @@ def _number(value: float | None) -> str:
 
 def _text(value: str | None) -> str:
     return value if value else "not specified"
-
-
-def _json_safe(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-    if hasattr(value, "item"):
-        return value.item()
-    return value
