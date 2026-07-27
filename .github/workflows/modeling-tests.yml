@@ -1,0 +1,45 @@
+name: Modeling integration tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  modeling-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install test dependencies
+        run: python -m pip install numpy scipy pytest
+
+      - name: Run modeling tests
+        id: tests
+        shell: bash
+        run: |
+          set +e
+          PYTHONPATH=src python -m pytest -q tests/test_modeling.py > modeling-test.log 2>&1
+          status=$?
+          cat modeling-test.log
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+      - name: Upload modeling test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: modeling-test-log
+          path: modeling-test.log
+          if-no-files-found: error
+
+      - name: Compile modeling modules
+        if: steps.tests.outputs.status == '0'
+        run: |
+          python -m compileall -q src/diffpy/pdfgui/modeling src/diffpy/pdfgui/gui/modeling.py
