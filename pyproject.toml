@@ -50,6 +50,7 @@ namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project.scripts]
 pdfgui = "diffpy.pdfgui.applications.pdfgui:main"
+pdfgui-analyze = "diffpy.pdfgui.analysis.cli:main"
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements/pip.txt"]}
