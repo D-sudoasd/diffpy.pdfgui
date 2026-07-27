@@ -194,7 +194,7 @@ def _bounded_ai_payload(analysis: PDFAnalysis) -> dict[str, Any]:
     payload = analysis.to_dict()
     source = payload.get("source")
     if source:
-        payload["source"] = Path(str(source)).name
+        payload["source"] = _local_path_basename(str(source))
     payload["metadata"] = _bounded_ai_value(payload.get("metadata", {}), depth=0)
     payload["request_scope"] = {
         "raw_arrays_included": False,
@@ -210,8 +210,8 @@ def _bounded_ai_value(value: Any, *, depth: int, key: str = "") -> Any:
     lowered_key = key.lower()
     if isinstance(value, str):
         text = value
-        if any(part in lowered_key for part in _PATH_KEY_PARTS):
-            text = Path(text).name
+        if any(part in lowered_key for part in _PATH_KEY_PARTS) or _looks_like_local_path(text):
+            text = _local_path_basename(text)
         if len(text) > _MAX_AI_STRING:
             return text[:_MAX_AI_STRING] + "…"
         return text
@@ -232,6 +232,17 @@ def _bounded_ai_value(value: Any, *, depth: int, key: str = "") -> Any:
             bounded_list.append(f"<truncated {len(value) - _MAX_AI_ITEMS} item(s)>")
         return bounded_list
     return value
+
+
+def _looks_like_local_path(value: str) -> bool:
+    if value.startswith(("/", "~/", "./", "../", "\\\\")):
+        return True
+    return len(value) >= 3 and value[1] == ":" and value[2] in ("/", "\\")
+
+
+def _local_path_basename(value: str) -> str:
+    normalized = value.replace("\\", "/").rstrip("/")
+    return normalized.rsplit("/", 1)[-1] or "<path>"
 
 
 def _number(value: float | None) -> str:
