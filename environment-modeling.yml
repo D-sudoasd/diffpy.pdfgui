@@ -1,0 +1,12 @@
+name: diffpy-pdfgui-modeling
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - pip
+  - numpy
+  - scipy
+  - matplotlib-base
+  - wxpython
+  - pip:
+      - -e .[modeling]
