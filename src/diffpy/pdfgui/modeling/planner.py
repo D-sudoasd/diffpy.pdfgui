@@ -3,14 +3,28 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+import math
 from typing import Any
 
 from diffpy.pdfgui.modeling.models import BackendStatus, ModelingPlan, ModelingRequest
 from diffpy.pdfgui.modeling.registry import backend_map, detect_backends
 
-_SAMPLE_KINDS = {"crystalline", "nanocrystalline", "disordered", "amorphous", "molecular"}
-_GOALS = {"auto", "small_box_refinement", "custom_refinement", "pdf_simulation", "series_comparison", "large_box_modeling"}
+_SAMPLE_KINDS = {
+    "crystalline",
+    "nanocrystalline",
+    "disordered",
+    "amorphous",
+    "molecular",
+}
+_GOALS = {
+    "auto",
+    "small_box_refinement",
+    "custom_refinement",
+    "pdf_simulation",
+    "series_comparison",
+    "large_box_modeling",
+}
+_PATH_KEY_PARTS = ("path", "file", "source", "directory", "executable")
 
 
 def plan_modeling(
@@ -28,9 +42,13 @@ def plan_modeling(
     steps = _steps(selected_id, request)
     warnings = list(_warnings(selected_id, status, request))
     alternatives = _alternatives(selected_id, request, available)
-    if request.structure_file is None and "structure model" in required_inputs:
-        warnings.append("A structure model has not been supplied.")
-    if not request.data_files and "experimental PDF data" in required_inputs:
+    if request.structure_file is None and any(
+        phrase in item.lower()
+        for item in required_inputs
+        for phrase in ("structure", "configuration")
+    ):
+        warnings.append("A structure model or starting configuration has not been supplied.")
+    if not request.data_files and any("data" in item.lower() for item in required_inputs):
         warnings.append("Experimental PDF data have not been supplied.")
     return ModelingPlan(
         selected_backend=selected_id,
@@ -55,17 +73,19 @@ def build_modeling_ai_prompt(
 ) -> str:
     """Build a bounded explanation prompt without transferring raw PDF arrays."""
 
-    payload = {
-        "request": _bounded(request.to_dict()),
-        "plan": plan.to_dict(),
-        "backend_status": [status.to_dict() for status in statuses],
-        "diagnostic_summary": _bounded(diagnostic_summary or {}),
-        "data_boundary": {
-            "raw_pdf_arrays_included": False,
-            "structure_contents_included": False,
-            "local_paths_reduced_to_basename": True,
-        },
-    }
+    payload = _bounded(
+        {
+            "request": request.to_dict(),
+            "plan": plan.to_dict(),
+            "backend_status": [status.to_dict() for status in statuses],
+            "diagnostic_summary": diagnostic_summary or {},
+            "data_boundary": {
+                "raw_pdf_arrays_included": False,
+                "structure_contents_included": False,
+                "local_paths_reduced_to_basename": True,
+            },
+        }
+    )
     safe_language = " ".join(str(language).split())[:80] or "English"
     prompt = f"""You are assisting with atomic pair distribution function modeling.
 The deterministic planner has already selected a backend. Explain the plan, identify missing inputs, and propose staged
@@ -95,39 +115,72 @@ def _select_backend(
         return selected, [f"The user explicitly selected {selected}."]
 
     if request.goal == "series_comparison":
-        return "diffpy-morph", ["The goal is model-independent comparison of related one-dimensional PDF data."]
+        return "diffpy-morph", [
+            "The goal is model-independent comparison of related one-dimensional PDF data."
+        ]
     if request.goal == "pdf_simulation":
         return "srreal", ["The goal is direct PDF simulation from an explicit structure model."]
-    if request.goal == "large_box_modeling" or request.sample_kind in {"disordered", "amorphous"}:
+    if request.goal == "large_box_modeling" or request.sample_kind in {
+        "disordered",
+        "amorphous",
+    }:
         selected = _first_usable(("rmcprofile", "fullrmc"), statuses) or "rmcprofile"
         return selected, ["The sample description requires an atomistic large-box disorder model."]
-    if request.goal == "custom_refinement" or request.custom_constraints or len(request.data_files) > 1:
+    if (
+        request.goal == "custom_refinement"
+        or request.custom_constraints
+        or len(request.data_files) > 1
+    ):
         selected = _first_usable(("diffpy-cmi", "srfit"), statuses) or "diffpy-cmi"
         return selected, [
             "The request includes custom constraints, multiple data sets, or a complex refinement objective."
         ]
     if request.goal == "small_box_refinement":
-        return "pdfgui", ["The goal is conventional small-box PDF refinement with a crystal structure model."]
+        return "pdfgui", [
+            "The goal is conventional small-box PDF refinement with a crystal structure model."
+        ]
     if request.sample_kind == "nanocrystalline":
         return "pdfgui", [
             "A staged small-box fit is the lowest-complexity starting point for a nanocrystalline sample.",
             "Persistent correlated residuals can trigger a later SrFit or large-box workflow.",
         ]
     if request.sample_kind == "molecular" and not request.periodic:
-        return "srreal", ["A non-periodic molecular model is suited to Debye PDF simulation before refinement."]
-    return "pdfgui", ["A crystalline sample with one PDF data set is suited to the built-in small-box workflow."]
+        return "srreal", [
+            "A non-periodic molecular model is suited to Debye PDF simulation before refinement."
+        ]
+    return "pdfgui", [
+        "A crystalline sample with one PDF data set is suited to the built-in small-box workflow."
+    ]
 
 
 def _required_inputs(backend_id: str) -> tuple[str, ...]:
     requirements = {
-        "pdfgui": ("structure model", "experimental PDF data", "scattering type and Q range"),
+        "pdfgui": (
+            "structure model",
+            "experimental PDF data",
+            "scattering type and Q range",
+        ),
         "pdffit2": ("PDFFIT or DISCUS structure model", "experimental PDF data"),
         "srreal": ("structure model", "scattering type and calculation range"),
-        "srfit": ("structure model", "experimental PDF data", "explicit variables and constraints"),
-        "diffpy-cmi": ("structure model", "one or more experimental data sets", "workflow or recipe definition"),
+        "srfit": (
+            "structure model",
+            "experimental PDF data",
+            "explicit variables and constraints",
+        ),
+        "diffpy-cmi": (
+            "structure model",
+            "one or more experimental data sets",
+            "workflow or recipe definition",
+        ),
         "diffpy-morph": ("two or more comparable one-dimensional PDF data sets",),
-        "rmcprofile": ("starting atomistic configuration", "RMCProfile control and data files"),
-        "fullrmc": ("starting atomistic configuration", "reviewed fullrmc Python driver script"),
+        "rmcprofile": (
+            "starting atomistic configuration",
+            "RMCProfile control and data files",
+        ),
+        "fullrmc": (
+            "starting atomistic configuration",
+            "reviewed fullrmc Python driver script",
+        ),
     }
     return requirements.get(backend_id, ("backend-specific inputs",))
 
@@ -150,24 +203,24 @@ def _steps(backend_id: str, request: ModelingRequest) -> tuple[str, ...]:
         )
     if backend_id in {"srfit", "diffpy-cmi"}:
         return (
-            "Create a version-controlled recipe with explicit data parsers, generators, variables, constraints, and restraints.",
+            "Create a version-controlled recipe with explicit parsers, generators, variables, constraints, and restraints.",
             "Fit scale and resolution terms first, then release structural variables in physically justified groups.",
             "Use bounds or restraints for underdetermined variables and compare multiple starting values.",
-            "Save the recipe, optimized values, covariance or resampling results, calculated curves, and residual diagnostics.",
+            "Save optimized values, uncertainty estimates, calculated curves, and residual diagnostics.",
         )
     if backend_id == "diffpy-morph":
         return (
             "Choose a target and comparison PDF collected on compatible grids and over a shared r interval.",
             "Optimize only justified scale, stretch, and broadening corrections.",
-            "Inspect the corrected difference curve and parameter uncertainty before assigning a structural transition.",
+            "Inspect the corrected difference curve and parameter uncertainty before structural assignment.",
             "Send data sets with unexplained differences to small-box or complex-model refinement.",
         )
     if backend_id in {"rmcprofile", "fullrmc"}:
         return (
-            "Prepare a sufficiently large starting configuration and document composition, density, cell, and boundary conditions.",
-            "Define experimental weights and physically justified distance, coordination, or molecular constraints.",
-            "Run the external engine in a separate working directory and preserve its complete input and output manifest.",
-            "Validate convergence across independent seeds and test the final configurations against data not used in the fit.",
+            "Prepare a large starting configuration and document composition, density, cell, and boundaries.",
+            "Define data weights and physically justified distance, coordination, or molecular constraints.",
+            "Run the external engine in a separate directory and preserve its complete input and output manifest.",
+            "Validate independent seeds and test final configurations against data not used in the fit.",
         )
     return ("Consult the backend documentation and prepare a version-controlled input manifest.",)
 
@@ -183,13 +236,25 @@ def _warnings(
         if status.install_hint:
             warnings.append(status.install_hint)
     if backend_id == "fullrmc":
-        warnings.append("fullrmc remains process-separated because its distribution uses the AGPL-3.0 license.")
+        warnings.append(
+            "fullrmc remains process-separated because its distribution uses the AGPL-3.0 license."
+        )
     if backend_id == "rmcprofile":
-        warnings.append("RMCProfile is treated as a separately installed executable and is not redistributed.")
+        warnings.append(
+            "RMCProfile is treated as a separately installed executable and is not redistributed."
+        )
     if backend_id in {"rmcprofile", "fullrmc"} and request.sample_kind == "crystalline":
-        warnings.append("A large-box model adds many degrees of freedom; justify it with data and residual evidence.")
-    if backend_id in {"srfit", "diffpy-cmi"} and not request.custom_constraints and len(request.data_files) <= 1:
-        warnings.append("Document why the custom workflow is needed beyond the built-in PDFgui refinement.")
+        warnings.append(
+            "A large-box model adds many degrees of freedom; justify it with data and residual evidence."
+        )
+    if (
+        backend_id in {"srfit", "diffpy-cmi"}
+        and not request.custom_constraints
+        and len(request.data_files) <= 1
+    ):
+        warnings.append(
+            "Document why the custom workflow is needed beyond the built-in PDFgui refinement."
+        )
     return tuple(warnings)
 
 
@@ -211,11 +276,16 @@ def _alternatives(
     return tuple(
         candidate
         for candidate in candidates
-        if candidate != selected_id and candidate in statuses and statuses[candidate].usable
+        if candidate != selected_id
+        and candidate in statuses
+        and statuses[candidate].usable
     )
 
 
-def _first_usable(candidates: tuple[str, ...], statuses: dict[str, BackendStatus]) -> str | None:
+def _first_usable(
+    candidates: tuple[str, ...],
+    statuses: dict[str, BackendStatus],
+) -> str | None:
     for candidate in candidates:
         status = statuses.get(candidate)
         if status is not None and status.usable:
@@ -253,20 +323,38 @@ def _bounded(value: Any, *, depth: int = 0, key: str = "") -> Any:
     if depth >= 5:
         return "<maximum depth reached>"
     if isinstance(value, dict):
-        items = sorted(value.items(), key=lambda item: str(item[0]))[:32]
-        return {str(item_key): _bounded(item_value, depth=depth + 1, key=str(item_key)) for item_key, item_value in items}
-    if isinstance(value, (list, tuple)):
-        bounded = [_bounded(item, depth=depth + 1, key=key) for item in value[:32]]
-        if len(value) > 32:
-            bounded.append(f"<truncated {len(value) - 32} item(s)>")
+        items = sorted(value.items(), key=lambda item: str(item[0]))
+        bounded = {
+            str(item_key): _bounded(
+                item_value,
+                depth=depth + 1,
+                key=str(item_key),
+            )
+            for item_key, item_value in items[:32]
+        }
+        if len(items) > 32:
+            bounded["__truncated_items__"] = len(items) - 32
         return bounded
+    if isinstance(value, (list, tuple, set, frozenset)):
+        sequence = list(value)
+        bounded_items = [_bounded(item, depth=depth + 1, key=key) for item in sequence[:32]]
+        if len(sequence) > 32:
+            bounded_items.append(f"<truncated {len(sequence) - 32} item(s)>")
+        return bounded_items
+    if hasattr(value, "tolist") and not isinstance(value, (str, bytes)):
+        try:
+            return _bounded(value.tolist(), depth=depth, key=key)
+        except Exception:
+            pass
     if isinstance(value, str):
         text = value
         lowered = key.lower()
-        if _looks_like_path(text) or any(part in lowered for part in ("path", "file", "source", "directory")):
-            text = text.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1]
+        if _looks_like_path(text) or any(part in lowered for part in _PATH_KEY_PARTS):
+            text = _basename(text)
         return text[:500] + ("…" if len(text) > 500 else "")
-    if value is None or isinstance(value, (bool, int, float)):
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if value is None or isinstance(value, (bool, int)):
         return value
     return str(value)[:500]
 
@@ -275,3 +363,8 @@ def _looks_like_path(value: str) -> bool:
     if value.startswith(("/", "~/", "./", "../", "\\\\")):
         return True
     return len(value) >= 3 and value[1] == ":" and value[2] in ("/", "\\")
+
+
+def _basename(value: str) -> str:
+    normalized = value.replace("\\", "/").rstrip("/")
+    return normalized.rsplit("/", 1)[-1] or "<path>"
