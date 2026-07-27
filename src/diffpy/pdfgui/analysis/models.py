@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -131,12 +133,22 @@ class PDFAnalysis:
 
 
 def _to_builtin(value: Any) -> Any:
-    """Recursively convert NumPy scalar values to Python built-ins."""
+    """Recursively convert scientific Python values to JSON-safe built-ins."""
 
     if isinstance(value, dict):
         return {str(key): _to_builtin(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, (list, tuple, set, frozenset)):
         return [_to_builtin(item) for item in value]
+    if isinstance(value, np.ndarray):
+        return _to_builtin(value.tolist())
     if isinstance(value, np.generic):
-        return value.item()
-    return value
+        return _to_builtin(value.item())
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
