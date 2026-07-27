@@ -87,7 +87,7 @@ class OpenAICompatibleClient:
         except urllib.error.HTTPError as error:
             detail = error.read().decode("utf-8", errors="replace")[:500]
             raise AIClientError(f"AI endpoint returned HTTP {error.code}: {detail}") from error
-        except (urllib.error.URLError, TimeoutError, OSError) as error:
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as error:
             raise AIClientError(f"AI request failed: {error}") from error
 
         try:

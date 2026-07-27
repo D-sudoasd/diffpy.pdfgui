@@ -8,8 +8,14 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
+import pytest
 
-from diffpy.pdfgui.analysis.ai import _extract_response_text
+from diffpy.pdfgui.analysis.ai import (
+    AIClientError,
+    AISettings,
+    OpenAICompatibleClient,
+    _extract_response_text,
+)
 from diffpy.pdfgui.analysis.cli import main as cli_main
 from diffpy.pdfgui.analysis.core import analyze_pdf_data
 from diffpy.pdfgui.analysis.models import PDFSeries
@@ -18,6 +24,17 @@ from diffpy.pdfgui.analysis.models import PDFSeries
 def test_non_object_ai_response_is_rejected_cleanly():
     assert _extract_response_text([]) == ""
     assert _extract_response_text("unexpected") == ""
+
+
+def test_invalid_ai_timeout_and_endpoint_are_controlled(monkeypatch):
+    monkeypatch.setenv("PDFGUI_AI_TIMEOUT", "nan")
+    assert AISettings.from_environment().timeout == 60.0
+
+    client = OpenAICompatibleClient(
+        AISettings(endpoint="not-a-url", model="test-model", timeout=float("inf"))
+    )
+    with pytest.raises(AIClientError, match="AI endpoint is invalid"):
+        client.ask("diagnose")
 
 
 def test_zero_mad_residual_outlier_is_detected():
