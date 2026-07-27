@@ -6,9 +6,12 @@ import json
 import math
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any
+
+_MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 
 
 class AIClientError(RuntimeError):
@@ -52,10 +55,8 @@ class OpenAICompatibleClient:
     def ask(self, prompt: str) -> str:
         """Return the endpoint's text response."""
 
-        endpoint = self.settings.endpoint.strip()
+        endpoint = _validated_endpoint(self.settings.endpoint)
         model = self.settings.model.strip()
-        if not endpoint:
-            raise AIClientError("AI endpoint is not configured")
         if not model:
             raise AIClientError("AI model is not configured")
         payload = {
@@ -72,8 +73,12 @@ class OpenAICompatibleClient:
             ],
             "temperature": 0.1,
         }
-        body = json.dumps(payload).encode("utf-8")
-        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        body = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "diffpy.pdfgui-ai-analysis",
+        }
         if self.settings.api_key:
             headers["Authorization"] = f"Bearer {self.settings.api_key}"
         try:
@@ -83,12 +88,15 @@ class OpenAICompatibleClient:
         timeout = _validated_timeout(self.settings.timeout)
         try:
             with urllib.request.urlopen(request, timeout=timeout) as response:
-                response_body = response.read().decode("utf-8", errors="replace")
+                response_bytes = response.read(_MAX_RESPONSE_BYTES + 1)
         except urllib.error.HTTPError as error:
-            detail = error.read().decode("utf-8", errors="replace")[:500]
+            detail = error.read(501).decode("utf-8", errors="replace")
             raise AIClientError(f"AI endpoint returned HTTP {error.code}: {detail}") from error
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as error:
             raise AIClientError(f"AI request failed: {error}") from error
+        if len(response_bytes) > _MAX_RESPONSE_BYTES:
+            raise AIClientError("AI endpoint response exceeded the 2 MiB safety limit")
+        response_body = response_bytes.decode("utf-8", errors="replace")
 
         try:
             parsed = json.loads(response_body)
@@ -98,6 +106,18 @@ class OpenAICompatibleClient:
         if not text:
             raise AIClientError("AI endpoint response did not contain assistant text")
         return text.strip()
+
+
+def _validated_endpoint(value: Any) -> str:
+    endpoint = str(value or "").strip()
+    if not endpoint:
+        raise AIClientError("AI endpoint is not configured")
+    parsed = urllib.parse.urlparse(endpoint)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise AIClientError("AI endpoint must be an absolute HTTP or HTTPS URL")
+    if parsed.username or parsed.password:
+        raise AIClientError("AI endpoint credentials must be supplied through the API-key field")
+    return endpoint
 
 
 def _extract_response_text(payload: Any) -> str:
