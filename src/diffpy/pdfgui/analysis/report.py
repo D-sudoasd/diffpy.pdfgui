@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
 from diffpy.pdfgui.analysis.models import PDFAnalysis
@@ -157,7 +156,8 @@ def build_ai_prompt(
     prompt = f"""You are assisting with atomic pair distribution function (PDF) analysis.
 Use only the supplied diagnostics and metadata. Separate numerical observations from structural hypotheses.
 Do not assign phases, coordination environments, bond identities, or defect mechanisms unless the supplied metadata
-or question provides an explicit structural basis. Treat detected positive and negative features as signal features,
+or question provides an explicit structural basis. Treat detected positive and negative features as signal \
+features,
 not automatic atom-pair assignments. When discussing residuals, identify the relevant r interval and propose checks
 that can be performed in PDFgui. State which additional experimental or model information would be required for any
 stronger conclusion. Respond in {safe_language}.
