@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
@@ -18,7 +19,9 @@ from diffpy.pdfgui.analysis.ai import (
 )
 from diffpy.pdfgui.analysis.cli import main as cli_main
 from diffpy.pdfgui.analysis.core import analyze_pdf_data
+from diffpy.pdfgui.analysis.io import load_pdf_data
 from diffpy.pdfgui.analysis.models import PDFSeries
+from diffpy.pdfgui.analysis.report import analysis_to_json, build_ai_prompt
 
 
 def test_non_object_ai_response_is_rejected_cleanly():
@@ -33,7 +36,7 @@ def test_invalid_ai_timeout_and_endpoint_are_controlled(monkeypatch):
     client = OpenAICompatibleClient(
         AISettings(endpoint="not-a-url", model="test-model", timeout=float("inf"))
     )
-    with pytest.raises(AIClientError, match="AI endpoint is invalid"):
+    with pytest.raises(AIClientError, match="absolute HTTP or HTTPS URL"):
         client.ask("diagnose")
 
 
@@ -48,6 +51,51 @@ def test_zero_mad_residual_outlier_is_detected():
     assert analysis.residual is not None
     assert analysis.residual.outlier_count == 1
     assert "residual_outliers" in {flag.code for flag in analysis.flags}
+
+
+def test_metadata_serialization_and_ai_prompt_are_bounded():
+    r = np.arange(5.0)
+    analysis = analyze_pdf_data(
+        PDFSeries(
+            name="metadata",
+            r=r,
+            observed=np.sin(r),
+            source="/private/lab/sample.gr",
+            metadata={
+                "array": np.arange(40),
+                "filename": "/private/lab/model.cif",
+                "nonfinite": np.nan,
+                "object": Path("/private/lab/metadata.json"),
+            },
+        )
+    )
+    payload = json.loads(analysis_to_json(analysis))
+    assert payload["metadata"]["array"] == list(range(40))
+    assert payload["metadata"]["nonfinite"] is None
+
+    prompt = build_ai_prompt(analysis, question="x" * 5000)
+    assert "/private/lab/" not in prompt
+    assert "sample.gr" in prompt
+    assert "model.cif" in prompt
+    assert "<truncated 8 item(s)>" in prompt
+    assert len(prompt) < 20000
+
+
+def test_loader_supports_fortran_exponents_and_rejects_duplicate_columns():
+    with TemporaryDirectory() as directory:
+        source = Path(directory) / "fortran.gr"
+        source.write_text(
+            "# qmax = 2.5D+1\n"
+            "1.0D+0 2.0D+0 # first point\n"
+            "2.0D+0 3.0D+0 ; second point\n"
+            "3.0D+0 4.0D+0 // third point\n",
+            encoding="utf-8",
+        )
+        series = load_pdf_data(source)
+        assert series.qmax == 25.0
+        assert np.allclose(series.observed, [2.0, 3.0, 4.0])
+        with pytest.raises(ValueError, match="must be distinct"):
+            load_pdf_data(source, observed_column=0)
 
 
 def test_cli_reports_output_errors_and_avoids_name_collisions():
