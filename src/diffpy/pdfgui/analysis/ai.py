@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import urllib.error
 import urllib.request
@@ -32,11 +33,13 @@ class AISettings:
             timeout = float(timeout_text)
         except ValueError:
             timeout = 60.0
+        if not math.isfinite(timeout):
+            timeout = 60.0
         return cls(
             endpoint=os.environ.get("PDFGUI_AI_ENDPOINT", "").strip(),
             model=os.environ.get("PDFGUI_AI_MODEL", "").strip(),
             api_key=os.environ.get("PDFGUI_AI_API_KEY", "").strip(),
-            timeout=max(1.0, timeout),
+            timeout=min(600.0, max(1.0, timeout)),
         )
 
 
@@ -73,9 +76,13 @@ class OpenAICompatibleClient:
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         if self.settings.api_key:
             headers["Authorization"] = f"Bearer {self.settings.api_key}"
-        request = urllib.request.Request(endpoint, data=body, headers=headers, method="POST")
         try:
-            with urllib.request.urlopen(request, timeout=self.settings.timeout) as response:
+            request = urllib.request.Request(endpoint, data=body, headers=headers, method="POST")
+        except (TypeError, ValueError) as error:
+            raise AIClientError(f"AI endpoint is invalid: {error}") from error
+        timeout = _validated_timeout(self.settings.timeout)
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
                 response_body = response.read().decode("utf-8", errors="replace")
         except urllib.error.HTTPError as error:
             detail = error.read().decode("utf-8", errors="replace")[:500]
@@ -93,7 +100,9 @@ class OpenAICompatibleClient:
         return text.strip()
 
 
-def _extract_response_text(payload: dict[str, Any]) -> str:
+def _extract_response_text(payload: Any) -> str:
+    if not isinstance(payload, dict):
+        return ""
     choices = payload.get("choices")
     if isinstance(choices, list) and choices:
         first = choices[0]
@@ -121,3 +130,13 @@ def _content_to_text(content: Any) -> str:
                     parts.append(text["value"])
         return "\n".join(parts)
     return ""
+
+
+def _validated_timeout(value: Any) -> float:
+    try:
+        timeout = float(value)
+    except (TypeError, ValueError):
+        return 60.0
+    if not math.isfinite(timeout):
+        return 60.0
+    return min(600.0, max(1.0, timeout))

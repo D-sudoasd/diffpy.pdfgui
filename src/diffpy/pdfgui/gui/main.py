@@ -26,6 +26,7 @@ class PDFGuiApp(wx.App):
 
         self.frame = MainFrame(None, -1, "")
         install_ai_analysis(self.frame)
+        self.frame.menulength = self.frame.menuBar.GetMenuCount()
         self.SetTopWindow(self.frame)
         self.frame.Show()
         return True

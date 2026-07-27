@@ -122,16 +122,25 @@ def main(argv: list[str] | None = None) -> int:
             print(text, end="" if text.endswith("\n") else "\n")
         return 0
 
-    if len(rendered) == 1:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(rendered[0][1], encoding="utf-8")
-        return 0
+    try:
+        if len(rendered) == 1:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(rendered[0][1], encoding="utf-8")
+            return 0
 
-    args.output.mkdir(parents=True, exist_ok=True)
-    extension = ".json" if args.format == "json" else ".md"
-    for filename, text in rendered:
-        target = args.output / f"{filename.stem}-analysis{extension}"
-        target.write_text(text, encoding="utf-8")
+        args.output.mkdir(parents=True, exist_ok=True)
+        extension = ".json" if args.format == "json" else ".md"
+        used_names: dict[str, int] = {}
+        for filename, text in rendered:
+            base_name = f"{filename.stem}-analysis"
+            occurrence = used_names.get(base_name, 0) + 1
+            used_names[base_name] = occurrence
+            suffix = "" if occurrence == 1 else f"-{occurrence}"
+            target = args.output / f"{base_name}{suffix}{extension}"
+            target.write_text(text, encoding="utf-8")
+    except OSError as error:
+        print(f"pdfgui-analyze: could not write output: {error}", file=sys.stderr)
+        return 2
     return 0
 
 

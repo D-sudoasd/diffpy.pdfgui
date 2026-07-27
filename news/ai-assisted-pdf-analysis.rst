@@ -17,7 +17,10 @@
 
 **Fixed:**
 
-* No fixes.
+* Handle non-object AI responses as controlled client errors and normalize invalid request timeouts.
+* Detect isolated residual outliers when the median absolute deviation is zero.
+* Report command-line output failures cleanly and avoid overwriting batch results with duplicate file stems.
+* Keep the main-menu enable/disable count synchronized after adding the Analysis menu.
 
 **Security:**
 
