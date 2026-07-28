@@ -62,20 +62,42 @@ jobs:
           python -m pip install -r requirements/modeling.txt
 
       - name: Import modeling packages
+        id: imports
+        shell: bash
         run: |
-          python - <<'PY'
-          from diffpy.structure import Structure
-          from diffpy.srreal.pdfcalculator import PDFCalculator
-          from diffpy.srfit.fitbase import FitRecipe
-          from diffpy.morph.morphpy import morph
+          set +e
+          python - <<'PY' > modeling-import.log 2>&1
+          from importlib import import_module
 
-          assert Structure is not None
-          assert PDFCalculator is not None
-          assert FitRecipe is not None
-          assert morph is not None
+          checks = (
+              ("diffpy.structure", "Structure"),
+              ("diffpy.srreal.pdfcalculator", "PDFCalculator"),
+              ("diffpy.srfit.fitbase", "FitRecipe"),
+              ("diffpy.morph.morphpy", "morph"),
+          )
+          for module_name, attribute_name in checks:
+              print(f"Importing {module_name}.{attribute_name}", flush=True)
+              module = import_module(module_name)
+              value = getattr(module, attribute_name)
+              if value is None:
+                  raise RuntimeError(f"{module_name}.{attribute_name} resolved to None")
+              print("OK", flush=True)
           PY
+          status=$?
+          cat modeling-import.log
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+      - name: Upload modeling import log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: modeling-import-log
+          path: modeling-import.log
+          if-no-files-found: error
 
       - name: Record backend status
+        if: steps.imports.outputs.status == '0'
         run: |
           PYTHONPATH=src python -m diffpy.pdfgui.modeling.cli doctor --json \
             --output modeling-backends.json
@@ -92,6 +114,7 @@ jobs:
           PY
 
       - name: Upload backend status
+        if: steps.imports.outputs.status == '0'
         uses: actions/upload-artifact@v4
         with:
           name: modeling-backend-status
