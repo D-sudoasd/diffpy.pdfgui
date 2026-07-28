@@ -58,9 +58,11 @@ jobs:
           cache-downloads: true
           post-cleanup: all
 
-      - name: Install the PDFgui project
+      - name: Install PDFgui and the test runner
         shell: micromamba-shell {0}
-        run: python -m pip install . --no-deps
+        run: |
+          python -m pip install . --no-deps
+          python -m pip install pytest
 
       - name: Import modeling packages
         id: imports
