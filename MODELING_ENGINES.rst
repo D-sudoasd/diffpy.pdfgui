@@ -1,44 +1,48 @@
 Unified PDF modeling backends
 =============================
 
-This project keeps the PDFgui and PDFfit2 small-box workflow and adds one
-interface for optional simulation, custom refinement, model-independent
-comparison, and large-box modeling tools.
+PDFgui retains its PDFfit2 small-box refinement workflow and adds one interface
+for optional simulation, custom refinement, model-independent comparison, and
+large-box modeling tools.
 
-The integration has four layers:
+The integration consists of four parts:
 
-* backend discovery reports installed Python distributions and configured
-  external executables;
-* a deterministic planner selects a workflow from sample type, scientific goal,
-  data count, and constraint requirements;
-* in-process adapters run SrReal, SrFit, and diffpy.morph when their packages are
-  available;
-* an external-process adapter invokes separately installed RMCProfile or a
-  fullrmc Python environment without shell command expansion.
+* backend discovery for installed Python distributions and configured external
+  executables;
+* deterministic workflow planning from sample type, scientific goal, data count,
+  and constraint requirements;
+* in-process adapters for SrReal, SrFit, and diffpy.morph;
+* process-isolated adapters for separately installed RMCProfile and fullrmc.
 
-The planner does not change PDFgui projects or start a refinement. A calculation
+The planner does not alter a PDFgui project or start a refinement. A calculation
 runs only after an explicit GUI or command-line action.
 
 Installation
 ------------
 
 Use the supplied conda-forge environment for the complete DiffPy modeling stack.
-This resolves compiled libraries such as ``libdiffpy`` together with
-``diffpy.srreal``. The currently published SrReal, SrFit, and DiffPy-CMI package
-metadata require Python earlier than 3.14, so the environment pins Python 3.13::
+It resolves compiled libraries such as ``libdiffpy`` together with SrReal. The
+currently published SrReal, SrFit, and DiffPy-CMI distributions require Python
+earlier than 3.14, so the environment pins Python 3.13::
 
     micromamba create -f environment-modeling.yml
     micromamba activate diffpy-pdfgui-modeling
-    python -m pip install -e . --no-deps
+    python -m pip install . --no-deps
     pdfgui-model doctor
 
-The same environment file can be used with Conda::
+The same environment file works with Conda::
 
     conda env create -f environment-modeling.yml
     conda activate diffpy-pdfgui-modeling
-    python -m pip install -e . --no-deps
+    python -m pip install . --no-deps
 
-The environment installs these modeling dependencies from conda-forge:
+A normal source installation is used after the conda-forge environment is
+created. PEP 660 editable installation can conflict with the shared ``diffpy``
+package namespace when several DiffPy distributions are installed together.
+Developers who need editable sources can place the repository ``src`` directory
+at the front of ``PYTHONPATH`` and run the test suite before packaging.
+
+The environment installs these components from conda-forge:
 
 * ``diffpy.pdffit2``;
 * ``diffpy.structure``;
@@ -50,19 +54,18 @@ The environment installs these modeling dependencies from conda-forge:
 * NumPy, SciPy, Matplotlib, and wxPython.
 
 ``requirements/modeling.txt`` is retained as a pip fallback for platforms where
-the published binary wheels and their runtime libraries are already available.
-The conda-forge environment is the tested complete installation path.
+the published wheels and required runtime libraries are already available. The
+conda-forge environment is the tested complete installation path.
 
 On Python 3.14, ``pdfgui-model doctor`` reports SrReal, SrFit, and DiffPy-CMI as
-unsupported and directs the user to the Python 3.13 modeling environment.
-PDFgui itself remains compatible with the Python versions declared in
-``pyproject.toml``.
+unsupported and points to the Python 3.13 modeling environment. PDFgui itself
+continues to use the Python range declared in ``pyproject.toml``.
 
 RMCProfile and fullrmc
 ----------------------
 
 RMCProfile is treated as a separately installed executable. It is not copied,
-packaged, or redistributed by this repository. Configure its executable with::
+packaged, or redistributed by this repository. Configure it with::
 
     PDFGUI_RMCPROFILE_EXECUTABLE=/absolute/path/to/rmcprofile
 
@@ -74,9 +77,8 @@ fullrmc installation with::
 
 The external runner receives an argument list, uses ``shell=False``, validates
 the working directory, timeout, and environment overrides, writes process output
-to temporary files, and reads at most 4 MiB from each stream. The user remains
-responsible for version-appropriate RMCProfile inputs or a reviewed fullrmc
-driver script.
+to temporary files, and reads at most 4 MiB from each stream. Users prepare
+version-appropriate RMCProfile inputs or a reviewed fullrmc driver script.
 
 Backend status
 --------------
@@ -94,9 +96,9 @@ Identifier        Integration                     Main role
 ``pdfgui``        built in                        small-box PDF refinement
 ``pdffit2``       in-process dependency           PDFgui refinement engine
 ``structure``     optional Python package         structure I/O and symmetry
-``srreal``        optional Python package         periodic and Debye PDF simulation
+``srreal``        optional Python package         periodic and Debye simulation
 ``srfit``         optional Python package         custom constrained refinement
-``diffpy-cmi``    optional Python package         multi-model and multi-data workflows
+``diffpy-cmi``    optional Python package         multi-model and multi-data work
 ``diffpy-morph``  optional Python package         scale/stretch/smear comparison
 ``rmcprofile``    external executable             large-box RMC modeling
 ``fullrmc``       external Python process         scripted large-box RMC modeling
@@ -156,7 +158,7 @@ Periodic crystal calculation::
         --qdamp 0.04 \
         --qbroad 0.01
 
-Debye calculation for a non-periodic molecular or nanoparticle model::
+Debye calculation for a molecular or non-periodic nanoparticle model::
 
     pdfgui-model simulate cluster.xyz cluster.gr \
         --mode debye \
@@ -164,8 +166,8 @@ Debye calculation for a non-periodic molecular or nanoparticle model::
         --qmax 25 \
         --rmax 40
 
-The adapter loads the structure through ``diffpy.structure``, chooses
-``PDFCalculator`` or ``DebyePDFCalculator``, validates all returned values, and
+The adapter loads the structure through ``diffpy.structure``, selects
+``PDFCalculator`` or ``DebyePDFCalculator``, validates returned arrays, and
 atomically writes a two-column ``r, G(r)`` file.
 
 SrFit refinement
@@ -182,19 +184,19 @@ Run a controlled single-phase recipe::
 The adapter loads data through ``PDFParser``, constructs a ``PDFGenerator`` or
 ``DebyePDFGenerator``, and refines scale, ``qdamp``, ``qbroad``, and ``delta2``.
 When an explicit space group is supplied, the recipe can add symmetry-allowed
-lattice, displacement, and positional variables. Without an explicit space
-group, structural variables remain fixed and the result records a warning.
+lattice, displacement, and positional variables. Without a space group,
+structural variables remain fixed and the result records a warning.
 
-The implementation uses SciPy bounded least squares with the bounds exposed by
-the SrFit recipe. The exported profile contains ``r``, observed PDF, calculated
-PDF, residual, and uncertainty columns.
+Optimization uses SciPy bounded least squares with bounds exposed by the SrFit
+recipe. The exported profile contains ``r``, observed PDF, calculated PDF,
+residual, and uncertainty columns.
 
 For multi-phase, multi-data, or multimodal refinements, use the generated plan as
 the starting specification for a version-controlled DiffPy-CMI or SrFit recipe.
-The project does not silently generate an unconstrained multi-model refinement.
+The project does not silently create an unconstrained multi-model refinement.
 
-Model-independent PDF comparison
---------------------------------
+Model-independent comparison
+----------------------------
 
 Compare two related PDFs with diffpy.morph::
 
@@ -207,7 +209,7 @@ Compare two related PDFs with diffpy.morph::
         --uncertainty \
         --json-output morph-result.json
 
-The initial scale, stretch, and smearing values are refined by diffpy.morph
+The supplied scale, stretch, and PDF-smearing values are refined by diffpy.morph
 unless ``--apply-only`` is supplied.
 
 External large-box runs
@@ -238,11 +240,11 @@ The PDFgui ``Analysis`` menu contains:
   external-executable information;
 * ``Plan modeling workflow`` for deterministic backend selection and optional AI
   explanation;
-* ``Simulate PDF with SrReal`` for periodic or Debye structure calculations.
+* ``Simulate PDF with SrReal`` for periodic or Debye calculations.
 
-Long SrReal calculations and AI requests run in worker threads so the main window
-remains responsive. SrFit, Morph, RMCProfile, and fullrmc runs remain explicit
-command-line operations suitable for reproducible batch directories.
+Long SrReal calculations and AI requests run in worker threads. SrFit, Morph,
+RMCProfile, and fullrmc runs remain explicit command-line operations suitable for
+reproducible batch directories.
 
 Scientific checks
 -----------------
@@ -253,8 +255,8 @@ and inspect these records for every run:
 * input files, software versions, scattering type, Q range, r range, and data
   uncertainty;
 * released variables, constraints, restraints, bounds, and starting values;
-* fit residuals as a function of r, parameter correlations, and alternative
-  starting points;
+* residuals as a function of r, parameter correlations, and alternative starting
+  points;
 * independent seeds and held-out observables for large-box models;
 * complete external-engine input and output directories.
 
@@ -262,9 +264,9 @@ License and distribution boundaries
 -----------------------------------
 
 PDFgui, PDFfit2, diffpy.structure, diffpy.srreal, DiffPy-CMI, and diffpy.morph
-are registered with their published BSD license metadata. SrFit is labeled
-``LicenseRef-diffpy (BSD-compatible)`` to preserve the upstream package label
-while recording its published BSD-compatible description. fullrmc is registered
-as AGPL-3.0-only. RMCProfile is registered with external distribution terms
-because this repository does not supply or relicense its executable. The status
-dialog exposes these labels for packaging and redistribution review.
+use their published BSD license metadata. SrFit is labeled
+``LicenseRef-diffpy (BSD-compatible)`` to preserve the upstream package label and
+its published BSD-compatible description. fullrmc is registered as
+AGPL-3.0-only. RMCProfile is registered with external distribution terms because
+this repository does not supply or relicense its executable. The status dialog
+exposes these labels for packaging and redistribution review.
