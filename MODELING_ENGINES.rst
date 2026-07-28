@@ -1,14 +1,14 @@
 Unified PDF modeling backends
 =============================
 
-This project keeps the existing PDFgui and PDFfit2 small-box workflow and adds
-one interface for optional simulation, complex refinement, model-independent
+This project keeps the PDFgui and PDFfit2 small-box workflow and adds one
+interface for optional simulation, custom refinement, model-independent
 comparison, and large-box modeling tools.
 
 The integration has four layers:
 
-* backend discovery reports installed Python packages and configured external
-  executables;
+* backend discovery reports installed Python distributions and configured
+  external executables;
 * a deterministic planner selects a workflow from sample type, scientific goal,
   data count, and constraint requirements;
 * in-process adapters run SrReal, SrFit, and diffpy.morph when their packages are
@@ -16,30 +16,47 @@ The integration has four layers:
 * an external-process adapter invokes separately installed RMCProfile or a
   fullrmc Python environment without shell command expansion.
 
-The planner produces a staged calculation plan. It does not alter PDFgui
-projects, refine parameters, or launch an external engine until the user invokes
-an explicit run command.
+The planner does not change PDFgui projects or start a refinement. A calculation
+runs only after an explicit GUI or command-line action.
 
 Installation
 ------------
 
-The complete DiffPy modeling stack currently requires Python 3.13 because the
-published ``diffpy.srreal``, ``diffpy.srfit``, and ``diffpy.cmi`` distributions
-require Python earlier than 3.14. From the repository root, create the supplied
-environment and install the editable project::
+Use the supplied conda-forge environment for the complete DiffPy modeling stack.
+This resolves compiled libraries such as ``libdiffpy`` together with
+``diffpy.srreal``. The currently published SrReal, SrFit, and DiffPy-CMI package
+metadata require Python earlier than 3.14, so the environment pins Python 3.13::
+
+    micromamba create -f environment-modeling.yml
+    micromamba activate diffpy-pdfgui-modeling
+    python -m pip install -e . --no-deps
+    pdfgui-model doctor
+
+The same environment file can be used with Conda::
 
     conda env create -f environment-modeling.yml
     conda activate diffpy-pdfgui-modeling
+    python -m pip install -e . --no-deps
 
-An existing Python 3.13 environment can use the project extra::
+The environment installs these modeling dependencies from conda-forge:
 
-    python -m pip install -e ".[modeling]"
+* ``diffpy.pdffit2``;
+* ``diffpy.structure``;
+* ``diffpy.utils``;
+* ``diffpy.srreal`` and its compiled dependencies;
+* ``diffpy.srfit``;
+* ``diffpy.cmi``;
+* ``diffpy.morph``;
+* NumPy, SciPy, Matplotlib, and wxPython.
 
-The equivalent requirement list is in ``requirements/modeling.txt``.
+``requirements/modeling.txt`` is retained as a pip fallback for platforms where
+the published binary wheels and their runtime libraries are already available.
+The conda-forge environment is the tested complete installation path.
 
-On Python 3.14, the environment markers install the compatible packages and skip
-the SrReal, SrFit, and DiffPy-CMI packages. ``pdfgui-model doctor`` reports these
-backends as unsupported and gives the Python 3.13 environment instruction.
+On Python 3.14, ``pdfgui-model doctor`` reports SrReal, SrFit, and DiffPy-CMI as
+unsupported and directs the user to the Python 3.13 modeling environment.
+PDFgui itself remains compatible with the Python versions declared in
+``pyproject.toml``.
 
 RMCProfile and fullrmc
 ----------------------
@@ -49,16 +66,17 @@ packaged, or redistributed by this repository. Configure its executable with::
 
     PDFGUI_RMCPROFILE_EXECUTABLE=/absolute/path/to/rmcprofile
 
-fullrmc is kept in a separate Python process because its public distribution uses
-the AGPL-3.0 license and can have a separate dependency stack. Configure the
-interpreter that owns the fullrmc installation with::
+fullrmc is kept in a separate Python process because it has its own dependency
+stack and is distributed under AGPL-3.0. Configure the interpreter that owns the
+fullrmc installation with::
 
     PDFGUI_FULLRMC_PYTHON=/absolute/path/to/fullrmc-environment/python
 
 The external runner receives an argument list, uses ``shell=False``, validates
-the working directory and timeout, captures output, and limits captured output to
-4 MiB per stream. The user remains responsible for preparing version-appropriate
-RMCProfile input files or a reviewed fullrmc driver script.
+the working directory, timeout, and environment overrides, writes process output
+to temporary files, and reads at most 4 MiB from each stream. The user remains
+responsible for version-appropriate RMCProfile inputs or a reviewed fullrmc
+driver script.
 
 Backend status
 --------------
@@ -87,7 +105,7 @@ Identifier        Integration                     Main role
 Workflow planning
 -----------------
 
-Generate a plan before running a refinement::
+Generate a staged plan before running a model::
 
     pdfgui-model plan \
         --sample-kind nanocrystalline \
@@ -95,16 +113,16 @@ Generate a plan before running a refinement::
         --structure model.cif \
         --data sample.gr
 
-Examples of deterministic selection are:
+The deterministic selection rules are:
 
 * one crystalline data set starts with PDFgui and PDFfit2;
 * multiple data sets or custom constraints select DiffPy-CMI or SrFit;
 * direct structure-to-PDF calculation selects SrReal;
-* related PDFs that need scale, stretch, or broadening comparison select
+* related PDFs requiring scale, stretch, or broadening comparison select
   diffpy.morph;
 * amorphous or explicitly disordered samples select an available large-box
   backend;
-* an explicit ``--backend`` selection overrides automatic selection and the plan
+* an explicit ``--backend`` value overrides automatic selection and the plan
   reports whether that backend is usable.
 
 The planner can emit JSON or a bounded AI explanation prompt::
@@ -163,9 +181,9 @@ Run a controlled single-phase recipe::
 
 The adapter loads data through ``PDFParser``, constructs a ``PDFGenerator`` or
 ``DebyePDFGenerator``, and refines scale, ``qdamp``, ``qbroad``, and ``delta2``.
-When an explicit space group is supplied, the recipe can also add symmetry-
-allowed lattice, displacement, and positional variables. Without an explicit
-space group, structural variables remain fixed and the result records a warning.
+When an explicit space group is supplied, the recipe can add symmetry-allowed
+lattice, displacement, and positional variables. Without an explicit space
+group, structural variables remain fixed and the result records a warning.
 
 The implementation uses SciPy bounded least squares with the bounds exposed by
 the SrFit recipe. The exported profile contains ``r``, observed PDF, calculated
@@ -173,7 +191,7 @@ PDF, residual, and uncertainty columns.
 
 For multi-phase, multi-data, or multimodal refinements, use the generated plan as
 the starting specification for a version-controlled DiffPy-CMI or SrFit recipe.
-The project does not silently generate unconstrained multi-model refinements.
+The project does not silently generate an unconstrained multi-model refinement.
 
 Model-independent PDF comparison
 --------------------------------
@@ -224,14 +242,13 @@ The PDFgui ``Analysis`` menu contains:
 
 Long SrReal calculations and AI requests run in worker threads so the main window
 remains responsive. SrFit, Morph, RMCProfile, and fullrmc runs remain explicit
-command-line operations because they can be long, version-specific, and suitable
-for reproducible batch directories.
+command-line operations suitable for reproducible batch directories.
 
 Scientific checks
 -----------------
 
 A successful numerical fit does not establish a unique structure model. Preserve
-and inspect at least the following information for each run:
+and inspect these records for every run:
 
 * input files, software versions, scattering type, Q range, r range, and data
   uncertainty;
@@ -245,9 +262,9 @@ License and distribution boundaries
 -----------------------------------
 
 PDFgui, PDFfit2, diffpy.structure, diffpy.srreal, DiffPy-CMI, and diffpy.morph
-are registered as BSD-licensed components according to their published package
-metadata. The published diffpy.srfit metadata identifies a restricted-use
-license. fullrmc is registered as AGPL-3.0-only. RMCProfile is registered with
-external distribution terms because this repository does not supply or relicense
-its executable. The status dialog exposes these labels so packaging and
-redistribution decisions remain explicit.
+are registered with their published BSD license metadata. SrFit is labeled
+``LicenseRef-diffpy (BSD-compatible)`` to preserve the upstream package label
+while recording its published BSD-compatible description. fullrmc is registered
+as AGPL-3.0-only. RMCProfile is registered with external distribution terms
+because this repository does not supply or relicense its executable. The status
+dialog exposes these labels for packaging and redistribution review.
