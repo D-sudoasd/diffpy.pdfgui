@@ -23,9 +23,11 @@ class PDFGuiApp(wx.App):
     def OnInit(self):
         from diffpy.pdfgui.gui.aianalysis import install_ai_analysis
         from diffpy.pdfgui.gui.mainframe import MainFrame
+        from diffpy.pdfgui.gui.modeling import install_modeling_workbench
 
         self.frame = MainFrame(None, -1, "")
         install_ai_analysis(self.frame)
+        install_modeling_workbench(self.frame)
         self.frame.menulength = self.frame.menuBar.GetMenuCount()
         self.SetTopWindow(self.frame)
         self.frame.Show()

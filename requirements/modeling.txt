@@ -1,0 +1,9 @@
+# Pip fallback for platforms where the published binary wheels import correctly.
+# The tested complete stack uses environment-modeling.yml and conda-forge so
+# compiled dependencies such as libdiffpy are resolved together.
+diffpy.structure>=3.4,<4
+diffpy.srreal>=1.4,<2; python_version < "3.14"
+diffpy.srfit>=3.2,<4; python_version < "3.14"
+diffpy.cmi>=3.1.2,<4; python_version < "3.14"
+diffpy.morph>=0.4,<1
+scipy>=1.11

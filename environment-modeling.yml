@@ -1,0 +1,17 @@
+name: diffpy-pdfgui-modeling
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - pip
+  - numpy
+  - scipy
+  - matplotlib-base
+  - wxpython
+  - diffpy.pdffit2>=1.5.2,<2
+  - diffpy.structure>=3.4,<4
+  - diffpy.utils
+  - diffpy.srreal>=1.4,<2
+  - diffpy.srfit>=3.2,<4
+  - diffpy.cmi>=3.1.2,<4
+  - diffpy.morph>=0.3.1,<1

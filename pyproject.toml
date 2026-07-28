@@ -36,6 +36,16 @@ classifiers = [
 Homepage = "https://github.com/diffpy/diffpy.pdfgui/"
 Issues = "https://github.com/diffpy/diffpy.pdfgui/issues/"
 
+[project.optional-dependencies]
+modeling = [
+  "diffpy.structure>=3.4,<4",
+  "diffpy.srreal>=1.4,<2; python_version < '3.14'",
+  "diffpy.srfit>=3.2,<4; python_version < '3.14'",
+  "diffpy.cmi>=3.1.2,<4; python_version < '3.14'",
+  "diffpy.morph>=0.4,<1",
+  "scipy>=1.11",
+]
+
 [tool.setuptools-git-versioning]
 enabled = true
 template = "{tag}"
@@ -51,6 +61,7 @@ namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 [project.scripts]
 pdfgui = "diffpy.pdfgui.applications.pdfgui:main"
 pdfgui-analyze = "diffpy.pdfgui.analysis.cli:main"
+pdfgui-model = "diffpy.pdfgui.modeling.cli:main"
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements/pip.txt"]}
