@@ -58,7 +58,8 @@ def test_registry_detects_packages_external_engines_and_python_gates():
     )
     mapped = backend_map(statuses)
     assert mapped["srreal"].state == "available"
-    assert mapped["srfit"].license_name == "Free To Use But Restricted"
+    assert mapped["srfit"].license_name == "LicenseRef-diffpy (BSD-compatible)"
+    assert "environment-modeling.yml" in mapped["srreal"].install_hint
     assert mapped["rmcprofile"].executable == "/opt/rmcprofile"
     assert mapped["fullrmc"].python_executable == sys.executable
 
@@ -107,7 +108,7 @@ def test_planner_selects_staged_workflows_and_bounds_ai_payload():
     )
     assert custom.selected_backend == "diffpy-cmi"
 
-    disordered_request = ModelingRequest(
+    request = ModelingRequest(
         sample_kind="amorphous",
         structure_file="/private/start.xyz",
         data_files=("/private/sample.gr",),
@@ -117,11 +118,11 @@ def test_planner_selects_staged_workflows_and_bounds_ai_payload():
             "working_directory": "/secret/runs/sample",
         },
     )
-    disordered = plan_modeling(disordered_request, statuses)
-    assert disordered.selected_backend == "rmcprofile"
+    plan = plan_modeling(request, statuses)
+    assert plan.selected_backend == "rmcprofile"
     prompt = build_modeling_ai_prompt(
-        disordered_request,
-        disordered,
+        request,
+        plan,
         statuses,
         diagnostic_summary={"raw": np.arange(40)},
     )
@@ -133,7 +134,7 @@ def test_planner_selects_staged_workflows_and_bounds_ai_payload():
     json.loads(prompt.split("```json\n", 1)[1].split("\n```", 1)[0])
 
 
-def test_external_runner_uses_argument_list_and_validates_inputs(tmp_path):
+def test_external_runner_uses_argument_lists_and_bounds_output(tmp_path):
     status = _status(
         "fullrmc",
         state="external",
@@ -149,8 +150,20 @@ def test_external_runner_uses_argument_list_and_validates_inputs(tmp_path):
     assert result.command[0] == sys.executable
     assert result.stdout.strip() == "runner-ok"
 
+    large = run_external_backend(
+        status,
+        ["-c", "import sys; sys.stdout.write('x' * 4200000)"],
+        working_directory=tmp_path,
+        timeout=10,
+    )
+    assert large.succeeded
+    assert large.output_truncated
+    assert len(large.stdout.encode("utf-8")) <= 4 * 1024 * 1024
+
     with pytest.raises(BackendExecutionError, match="arguments are required"):
         run_external_backend(status, [], working_directory=tmp_path)
+    with pytest.raises(BackendExecutionError, match="text, not bytes"):
+        run_external_backend(status, [b"bad"], working_directory=tmp_path)
     with pytest.raises(BackendExecutionError, match="invalid environment variable"):
         run_external_backend(
             status,
@@ -227,7 +240,6 @@ def test_srfit_adapter_builds_optimizes_and_exports(monkeypatch, tmp_path):
             self.y = np.array([2.0, 3.0, 4.0])
             self.dy = np.array([0.1, 0.1, 0.1])
             self.ycalc = np.zeros(3)
-            self.range_kwargs = {}
 
         def loadParsedData(self, parser):
             self.parser = parser
@@ -275,7 +287,6 @@ def test_srfit_adapter_builds_optimizes_and_exports(monkeypatch, tmp_path):
     class Recipe:
         def __init__(self):
             self.parameters = []
-            self.contribution = None
 
         def clearFitHooks(self):
             return None
@@ -320,7 +331,7 @@ def test_srfit_adapter_builds_optimizes_and_exports(monkeypatch, tmp_path):
     pdf_module.DebyePDFGenerator = Generator
     pdf_module.PDFParser = Parser
     srfit_structure_module = types.ModuleType("diffpy.srfit.structure")
-    srfit_structure_module.constrainAsSpaceGroup = lambda phase, space_group: SymmetryParameters()
+    srfit_structure_module.constrainAsSpaceGroup = lambda phase, group: SymmetryParameters()
     srfit_package = types.ModuleType("diffpy.srfit")
     srfit_package.__path__ = []
     structure_module = types.ModuleType("diffpy.structure")
@@ -348,7 +359,8 @@ def test_srfit_adapter_builds_optimizes_and_exports(monkeypatch, tmp_path):
     )
     result = optimize_recipe(bundle, max_nfev=100)
     assert result["success"]
-    assert set(result["variables"]) >= {"scale", "qdamp", "qbroad", "delta2", "a", "Biso", "x"}
+    expected = {"scale", "qdamp", "qbroad", "delta2", "a", "Biso", "x"}
+    assert set(result["variables"]) >= expected
     output = tmp_path / "refined.dat"
     assert save_refined_profile(bundle, output) == str(output.resolve())
     assert np.loadtxt(output).shape == (3, 5)
@@ -363,9 +375,9 @@ def test_morph_adapter_saves_json_safe_result(monkeypatch, tmp_path):
         assert Path(source).name == "source.gr"
         assert Path(target).name == "target.gr"
         assert kwargs["smear_pdf"] == -0.05
-        return {"scale": np.float64(1.1), "uncertainty": np.array([0.02])}, np.array(
-            [[1.0, 2.0], [2.0, 3.0], [3.0, 4.0]]
-        )
+        info = {"scale": np.float64(1.1), "uncertainty": np.array([0.02])}
+        table = np.array([[1.0, 2.0], [2.0, 3.0], [3.0, 4.0]])
+        return info, table
 
     morphpy_module.morph = morph
     monkeypatch.setitem(sys.modules, "diffpy.morph", morph_package)
@@ -387,7 +399,7 @@ def test_morph_adapter_saves_json_safe_result(monkeypatch, tmp_path):
     assert np.loadtxt(output).shape == (3, 2)
 
 
-def test_cli_plan_and_project_metadata(capsys):
+def test_cli_and_modeling_environment_metadata(capsys):
     result = modeling_main(["plan", "--sample-kind", "crystalline", "--json"])
     assert result == 0
     payload = json.loads(capsys.readouterr().out)
@@ -403,6 +415,14 @@ def test_cli_plan_and_project_metadata(capsys):
     assert any(requirement.startswith("diffpy.structure") for requirement in modeling_requirements)
     assert any(requirement.startswith("diffpy.srfit") for requirement in modeling_requirements)
 
+    environment = (root / "environment-modeling.yml").read_text(encoding="utf-8")
+    assert "python=3.13" in environment
+    assert "diffpy.srreal>=1.4,<2" in environment
+    assert "diffpy.srfit>=3.2,<4" in environment
+    assert "diffpy.cmi>=3.1.2,<4" in environment
+    assert "diffpy.morph>=0.3.1,<1" in environment
+    assert "-e .[modeling]" not in environment
+
 
 def test_new_python_files_follow_repository_line_limit():
     root = Path(__file__).resolve().parents[1]
@@ -410,7 +430,10 @@ def test_new_python_files_follow_repository_line_limit():
     paths.append(root / "src" / "diffpy" / "pdfgui" / "gui" / "modeling.py")
     offenders = []
     for path in paths:
-        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        for line_number, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(),
+            start=1,
+        ):
             if len(line) > 115:
                 offenders.append(f"{path.relative_to(root)}:{line_number}:{len(line)}")
     assert not offenders, "lines exceed 115 characters: " + ", ".join(offenders)
