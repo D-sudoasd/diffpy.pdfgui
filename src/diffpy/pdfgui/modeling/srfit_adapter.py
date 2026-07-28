@@ -99,7 +99,11 @@ def build_single_phase_recipe(
     contribution_name = "pdf"
     contribution = FitContribution(contribution_name)
     contribution.addProfileGenerator(generator)
-    contribution.setProfile(profile, xname="r")
+    set_profile = getattr(contribution, "set_profile", None)
+    if set_profile is not None:
+        set_profile(profile, xname="r")
+    else:
+        contribution.setProfile(profile, xname="r")
 
     recipe = FitRecipe()
     recipe.clearFitHooks()
