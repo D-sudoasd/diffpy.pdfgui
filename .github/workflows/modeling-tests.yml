@@ -50,20 +50,21 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Create conda-forge modeling environment
+        uses: mamba-org/setup-micromamba@v3
         with:
-          python-version: "3.13"
-          cache: pip
+          environment-file: environment-modeling.yml
+          cache-environment: true
+          cache-downloads: true
+          post-cleanup: all
 
-      - name: Install DiffPy modeling packages
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements/modeling.txt
+      - name: Install the editable PDFgui project
+        shell: micromamba-shell {0}
+        run: python -m pip install -e . --no-deps
 
       - name: Import modeling packages
         id: imports
-        shell: bash
+        shell: micromamba-shell {0}
         run: |
           set +e
           python - <<'PY' > modeling-import.log 2>&1
@@ -73,6 +74,7 @@ jobs:
               ("diffpy.structure", "Structure"),
               ("diffpy.srreal.pdfcalculator", "PDFCalculator"),
               ("diffpy.srfit.fitbase", "FitRecipe"),
+              ("diffpy.cmi", "__version__"),
               ("diffpy.morph.morphpy", "morph"),
           )
           for module_name, attribute_name in checks:
@@ -96,11 +98,13 @@ jobs:
           path: modeling-import.log
           if-no-files-found: error
 
-      - name: Record backend status
+      - name: Record backend and package status
         if: steps.imports.outputs.status == '0'
+        shell: micromamba-shell {0}
         run: |
-          PYTHONPATH=src python -m diffpy.pdfgui.modeling.cli doctor --json \
+          python -m diffpy.pdfgui.modeling.cli doctor --json \
             --output modeling-backends.json
+          micromamba list --json > modeling-environment.json
           python - <<'PY'
           import json
           from pathlib import Path
@@ -118,5 +122,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: modeling-backend-status
-          path: modeling-backends.json
+          path: |
+            modeling-backends.json
+            modeling-environment.json
           if-no-files-found: error
