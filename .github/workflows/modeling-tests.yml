@@ -98,13 +98,45 @@ jobs:
           path: modeling-import.log
           if-no-files-found: error
 
-      - name: Record backend and package status
+      - name: Record backend status
+        id: doctor
         if: steps.imports.outputs.status == '0'
         shell: micromamba-shell {0}
         run: |
+          set +e
           python -m diffpy.pdfgui.modeling.cli doctor --json \
-            --output modeling-backends.json
-          python -m pip list --format json > modeling-environment.json
+            --output modeling-backends.json > modeling-doctor.log 2>&1
+          status=$?
+          cat modeling-doctor.log
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Record package status
+        if: steps.imports.outputs.status == '0'
+        shell: micromamba-shell {0}
+        run: python -m pip list --format json > modeling-environment.json
+
+      - name: Upload backend diagnostics
+        if: always() && steps.imports.outputs.status == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: modeling-backend-status
+          path: |
+            modeling-backends.json
+            modeling-doctor.log
+            modeling-environment.json
+          if-no-files-found: warn
+
+      - name: Validate installed backend status
+        if: steps.imports.outputs.status == '0'
+        shell: micromamba-shell {0}
+        env:
+          DOCTOR_STATUS: ${{ steps.doctor.outputs.status }}
+        run: |
+          if [ "$DOCTOR_STATUS" != "0" ]; then
+            cat modeling-doctor.log
+            exit "$DOCTOR_STATUS"
+          fi
           python - <<'PY'
           import json
           from pathlib import Path
@@ -115,27 +147,6 @@ jobs:
                   f"{item['backend_id']}: state={item['state']} version={item['version']}",
                   flush=True,
               )
-          PY
-
-      - name: Upload backend status
-        if: steps.imports.outputs.status == '0'
-        uses: actions/upload-artifact@v4
-        with:
-          name: modeling-backend-status
-          path: |
-            modeling-backends.json
-            modeling-environment.json
-          if-no-files-found: error
-
-      - name: Validate installed backend status
-        if: steps.imports.outputs.status == '0'
-        shell: micromamba-shell {0}
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          payload = json.loads(Path("modeling-backends.json").read_text(encoding="utf-8"))
           states = {item["backend_id"]: item["state"] for item in payload}
           required = ("structure", "srreal", "srfit", "diffpy-cmi", "diffpy-morph")
           missing = [backend for backend in required if states.get(backend) != "available"]
