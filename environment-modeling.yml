@@ -8,5 +8,10 @@ dependencies:
   - scipy
   - matplotlib-base
   - wxpython
-  - pip:
-      - -e .[modeling]
+  - diffpy.pdffit2>=1.5.2,<2
+  - diffpy.structure>=3.4,<4
+  - diffpy.utils
+  - diffpy.srreal>=1.4,<2
+  - diffpy.srfit>=3.2,<4
+  - diffpy.cmi>=3.1.2,<4
+  - diffpy.morph>=0.3.1,<1
