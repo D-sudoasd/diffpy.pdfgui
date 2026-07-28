@@ -6,11 +6,12 @@
 * Add ``pdfgui-model`` commands for backend diagnostics, planning, SrReal simulation, SrFit refinement,
   diffpy.morph comparison, and controlled external-process execution.
 * Add a PDFgui modeling workbench for backend status, workflow planning, optional AI explanation, and SrReal simulation.
-* Add optional modeling requirements, a Python 3.13 environment, tests, and detailed modeling documentation.
+* Add a tested Python 3.13 conda-forge environment, pip fallback requirements, tests, and detailed documentation.
 
 **Changed:**
 
 * Keep RMCProfile and fullrmc as separately installed process-isolated backends with explicit configuration.
+* Resolve compiled DiffPy dependencies through conda-forge in the complete modeling environment.
 
 **Deprecated:**
 
@@ -22,7 +23,7 @@
 
 **Fixed:**
 
-* No fixes.
+* Avoid loading unbounded external-engine output into memory before applying output limits.
 
 **Security:**
 
