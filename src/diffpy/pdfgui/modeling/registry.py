@@ -16,7 +16,7 @@ WhichFunction = Callable[[str], str | None]
 
 _MODELING_ENV_HINT = (
     "Create the conda-forge environment from environment-modeling.yml, then install "
-    "the project with 'python -m pip install -e . --no-deps'."
+    "the project with 'python -m pip install . --no-deps'."
 )
 
 
