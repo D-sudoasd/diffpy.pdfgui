@@ -284,7 +284,7 @@ def _external(args: argparse.Namespace) -> int:
     if arguments and arguments[0] == "--":
         arguments.pop(0)
     working_directory = args.workdir.expanduser().resolve() if args.workdir else Path.cwd()
-    protected_files = _existing_external_file_arguments(arguments, working_directory)
+    protected_files = _external_path_arguments(arguments, working_directory)
     _reject_auxiliary_output_collision(args.json_output, protected_files)
     statuses = backend_map()
     status = statuses[args.backend]
@@ -399,27 +399,53 @@ def _normalized_path_key(path: Path, *, base: Path | None = None) -> str:
     return normalized.casefold() if os.name == "nt" else normalized
 
 
-def _existing_external_file_arguments(
+def _external_path_arguments(
     arguments: list[str],
     working_directory: Path,
 ) -> list[Path]:
-    """Resolve existing external-backend file arguments against its workdir."""
+    """Resolve conservative path-like backend arguments against its workdir.
 
-    files: list[Path] = []
+    Existing paths, absolute paths, values containing a path separator, and
+    filename-like values with an alphabetic extension are treated as paths.
+    Numeric values, URLs, bare words, and flags without ``=`` are ignored.
+    """
+
+    paths: list[Path] = []
     for argument in arguments:
         candidate = argument
         if argument.startswith("-"):
             if "=" not in argument:
                 continue
             candidate = argument.split("=", 1)[1]
-        if not candidate:
+        if not _is_path_like_external_value(candidate, working_directory):
             continue
         path = Path(candidate).expanduser()
         if not path.is_absolute():
             path = working_directory / path
-        if path.is_file():
-            files.append(path)
-    return files
+        paths.append(path)
+    return paths
+
+
+def _is_path_like_external_value(candidate: str, working_directory: Path) -> bool:
+    """Return whether a native argument value conservatively denotes a path."""
+
+    if not candidate or candidate == "-" or "://" in candidate:
+        return False
+    try:
+        float(candidate)
+    except ValueError:
+        pass
+    else:
+        return False
+
+    expanded = Path(candidate).expanduser()
+    resolved = expanded if expanded.is_absolute() else working_directory / expanded
+    if resolved.exists() or expanded.is_absolute():
+        return True
+    if candidate.startswith((".", "~")) or "/" in candidate or "\\" in candidate:
+        return True
+    suffix = expanded.suffix[1:]
+    return bool(suffix and any(character.isalpha() for character in suffix))
 
 
 def _write_text(text: str, output: Path | None) -> None:

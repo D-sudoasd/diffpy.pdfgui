@@ -202,6 +202,51 @@ def test_external_json_resolves_existing_arguments_against_workdir(
     _assert_sentinels_unchanged(sentinels)
 
 
+@pytest.mark.parametrize("native_argument", ["result.dat", "--output=result.dat"])
+def test_external_json_rejects_future_scientific_output_before_backend_execution(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+    native_argument: str,
+) -> None:
+    workdir = tmp_path / "run"
+    workdir.mkdir()
+    scientific_output = workdir / "result.dat"
+    backend_calls: list[str] = []
+
+    def simulate_backend(*_args, **_kwargs):
+        backend_calls.append("run")
+        scientific_output.write_text("scientific-data\n", encoding="utf-8")
+        raise AssertionError("external backend must not run")
+
+    monkeypatch.setattr(cli_impl, "backend_map", lambda: {"rmcprofile": object()})
+    monkeypatch.setattr(cli_impl, "run_external_backend", simulate_backend)
+
+    result = cli_impl.main(
+        [
+            "external",
+            "rmcprofile",
+            "--workdir",
+            str(workdir),
+            "--json-output",
+            str(scientific_output),
+            "--",
+            native_argument,
+        ]
+    )
+
+    assert result == 2
+    assert "cannot overwrite scientific input or primary output" in capsys.readouterr().err
+    assert backend_calls == []
+    assert not scientific_output.exists()
+
+
+def test_external_path_detection_ignores_plain_native_values(tmp_path: Path) -> None:
+    arguments = ["fast", "--mode=fast", "2.0", "--iterations=100", "https://example.test/run"]
+
+    assert cli_impl._external_path_arguments(arguments, tmp_path) == []
+
+
 def test_unrelated_plan_report_remains_allowed(tmp_path: Path) -> None:
     structure = tmp_path / "model.cif"
     report = tmp_path / "plan.json"
