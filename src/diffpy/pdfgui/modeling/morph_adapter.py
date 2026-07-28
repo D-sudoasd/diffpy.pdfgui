@@ -45,6 +45,9 @@ def compare_pdf_files(
     _validate_config(settings)
     source_path = _validated_file(source_file, "source")
     target_path = _validated_file(target_file, "target")
+    output_path = Path(output_file).expanduser().resolve() if output_file is not None else None
+    if output_path in {source_path, target_path}:
+        raise ValueError("morphed output file cannot overwrite either PDF input file")
     try:
         from diffpy.morph.morphpy import morph
     except ImportError as error:
@@ -72,8 +75,8 @@ def compare_pdf_files(
         raise RuntimeError("diffpy.morph returned non-finite values")
 
     saved_output = None
-    if output_file is not None:
-        saved_output = _atomic_save_table(output_file, table)
+    if output_path is not None:
+        saved_output = _atomic_save_table(output_path, table)
     return {
         "backend_id": "diffpy-morph",
         "source_file": str(source_path),
