@@ -10,7 +10,7 @@ def main():
             "Graphical user interface program for structure refinements "
             "to the atomic pair distribution function.\n\n"
             "For more information, visit: "
-            "https://github.com/diffpy/diffpy.pdfgui/"
+            "https://github.com/D-sudoasd/diffpy.pdfgui"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

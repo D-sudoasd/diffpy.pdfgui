@@ -55,7 +55,7 @@ Other current and former contributors of the DiffPy project include
 The DiffPy team is part of the Billinge Group at Columbia University in New York,
 within the Department of Applied Physics and Applied Mathematics.
 
-For a detailed list of contributors see
+For a detailed list of upstream contributors see
 https://github.com/diffpy/diffpy.pdfgui/graphs/contributors.
 
 =========
@@ -75,7 +75,7 @@ in your publication:
 Installation
 ============
 
-See the `README <https://github.com/diffpy/diffpy.pdfgui#installation>`_
+See the `README <https://github.com/D-sudoasd/diffpy.pdfgui#installation>`_
 file included with the distribution.
 
 ========
@@ -103,6 +103,8 @@ Table of contents
    examples
    extras
    license
+   ai_analysis
+   modeling_engines
    release
    Package API <api/diffpy.pdfgui>
 

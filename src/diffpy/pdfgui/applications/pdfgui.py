@@ -37,13 +37,14 @@ import getopt
 import os
 import sys
 
-from diffpy.pdfgui.branding import APPLICATION_NAME
+from diffpy.pdfgui.branding import APPLICATION_NAME, GUI_COMMAND, LEGACY_GUI_COMMAND, command_name
 
 
 def usage():
     """Show usage info."""
-    myname = os.path.basename(sys.argv[0])
-    msg = __doc__.replace("pdfgui", myname)
+    executable = command_name(sys.argv[0], GUI_COMMAND, LEGACY_GUI_COMMAND)
+    usage_line = f"Usage: {executable} [project.ddp]"
+    msg = __doc__.replace("Usage: ai-pdfgui [project.ddp]", usage_line)
     print(msg)
     return
 

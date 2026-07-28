@@ -147,7 +147,7 @@ html_theme = "sphinx_rtd_theme"
 
 html_context = {
     "display_github": True,
-    "github_user": "diffpy",
+    "github_user": "D-sudoasd",
     "github_repo": "diffpy.pdfgui",
     "github_version": "main",
     "conf_py_path": "/docs/source/",

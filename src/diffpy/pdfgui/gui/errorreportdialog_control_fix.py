@@ -29,7 +29,7 @@ from .errorreportdialog import ErrorReportDialog
 
 # Constants ------------------------------------------------------------------
 
-ISSUESTRACKER = "https://github.com/diffpy/diffpy.pdfgui/issues"
+ISSUESTRACKER = "https://github.com/D-sudoasd/diffpy.pdfgui/issues"
 USERSMAILINGLIST = "https://groups.google.com/d/forum/diffpy-users"
 _WEBSEARCHURL = "https://www.google.com/search?q={query}"
 

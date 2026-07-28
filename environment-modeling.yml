@@ -1,4 +1,4 @@
-name: diffpy-pdfgui-modeling
+name: ai-pdfgui-modeling
 channels:
   - conda-forge
 dependencies:

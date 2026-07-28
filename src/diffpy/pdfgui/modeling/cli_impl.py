@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -121,7 +122,7 @@ def build_parser() -> argparse.ArgumentParser:
     external.add_argument("--timeout", type=float, default=3600.0)
     external.add_argument("--env", action="append", default=[], metavar="KEY=VALUE")
     external.add_argument("--json-output", type=Path)
-    external.add_argument("arguments", nargs=argparse.REMAINDER)
+    external.add_argument("arguments", nargs="*")
     external.set_defaults(handler=_external)
     return parser
 
@@ -176,6 +177,7 @@ def _doctor(args: argparse.Namespace) -> int:
 
 
 def _plan(args: argparse.Namespace) -> int:
+    _reject_auxiliary_output_collision(args.output, [args.structure, *args.data])
     statuses = detect_backends()
     request = _request_from_args(args)
     plan = plan_modeling(request, statuses)
@@ -198,6 +200,7 @@ def _plan(args: argparse.Namespace) -> int:
 
 
 def _simulate(args: argparse.Namespace) -> int:
+    _reject_auxiliary_output_collision(args.json_output, [args.structure, args.output])
     result = simulate_structure_pdf(
         args.structure,
         args.output,
@@ -219,6 +222,9 @@ def _simulate(args: argparse.Namespace) -> int:
 
 
 def _srfit(args: argparse.Namespace) -> int:
+    _reject_auxiliary_output_collision(
+        args.json_output, [args.structure, args.data, args.profile_output]
+    )
     bundle = build_single_phase_recipe(
         args.structure,
         args.data,
@@ -249,6 +255,9 @@ def _srfit(args: argparse.Namespace) -> int:
 
 
 def _morph(args: argparse.Namespace) -> int:
+    _reject_auxiliary_output_collision(
+        args.json_output, [args.source, args.target, args.output]
+    )
     result = compare_pdf_files(
         args.source,
         args.target,
@@ -271,16 +280,19 @@ def _morph(args: argparse.Namespace) -> int:
 
 
 def _external(args: argparse.Namespace) -> int:
-    statuses = backend_map()
-    status = statuses[args.backend]
     arguments = list(args.arguments)
     if arguments and arguments[0] == "--":
         arguments.pop(0)
+    working_directory = args.workdir.expanduser().resolve() if args.workdir else Path.cwd()
+    protected_files = _existing_external_file_arguments(arguments, working_directory)
+    _reject_auxiliary_output_collision(args.json_output, protected_files)
+    statuses = backend_map()
+    status = statuses[args.backend]
     environment = _parse_key_values(args.env)
     result = run_external_backend(
         status,
         arguments,
-        working_directory=args.workdir,
+        working_directory=working_directory,
         timeout=args.timeout,
         extra_environment=environment,
     )
@@ -355,6 +367,59 @@ def _plan_to_text(plan: Any) -> str:
 def _write_json(payload: Any, output: Path | None) -> None:
     text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False) + "\n"
     _write_text(text, output)
+
+
+def _reject_auxiliary_output_collision(
+    output: Path | None,
+    protected_paths: list[Path | None],
+) -> None:
+    """Reject report paths that alias scientific inputs or primary outputs."""
+
+    if output is None:
+        return
+    output_key = _normalized_path_key(output)
+    for protected in protected_paths:
+        if protected is None:
+            continue
+        if output_key == _normalized_path_key(protected):
+            raise ValueError(
+                f"auxiliary output {str(output)!r} cannot overwrite scientific input "
+                f"or primary output {str(protected)!r}"
+            )
+
+
+def _normalized_path_key(path: Path, *, base: Path | None = None) -> str:
+    """Return a resolved comparison key with native case normalization."""
+
+    expanded = path.expanduser()
+    if not expanded.is_absolute():
+        expanded = (base or Path.cwd()) / expanded
+    resolved = expanded.resolve(strict=False)
+    normalized = os.path.normcase(str(resolved))
+    return normalized.casefold() if os.name == "nt" else normalized
+
+
+def _existing_external_file_arguments(
+    arguments: list[str],
+    working_directory: Path,
+) -> list[Path]:
+    """Resolve existing external-backend file arguments against its workdir."""
+
+    files: list[Path] = []
+    for argument in arguments:
+        candidate = argument
+        if argument.startswith("-"):
+            if "=" not in argument:
+                continue
+            candidate = argument.split("=", 1)[1]
+        if not candidate:
+            continue
+        path = Path(candidate).expanduser()
+        if not path.is_absolute():
+            path = working_directory / path
+        if path.is_file():
+            files.append(path)
+    return files
 
 
 def _write_text(text: str, output: Path | None) -> None:

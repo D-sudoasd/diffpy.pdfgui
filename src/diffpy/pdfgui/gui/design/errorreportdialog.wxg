@@ -4,7 +4,7 @@
 <application encoding="UTF-8" for_version="3.0" header_extension=".h" indent_amount="4" indent_symbol="space" is_template="0" language="python" mark_blocks="1" option="0" overwrite="0" path="../errorreportdialog.py" source_extension=".cpp" top_window="dialog_errorreport" use_gettext="0" use_new_namespace="1">
     <object class="ErrorReportDialog" name="dialog_errorreport" base="EditDialog">
         <size>540, 600</size>
-        <title>Problem Report for PDFgui</title>
+        <title>Problem Report for AI-PDFgui</title>
         <style>wxDEFAULT_DIALOG_STYLE|wxMAXIMIZE_BOX|wxMINIMIZE_BOX|wxRESIZE_BORDER</style>
         <object class="wxBoxSizer" name="sizer_main" base="EditBoxSizer">
             <orient>wxVERTICAL</orient>

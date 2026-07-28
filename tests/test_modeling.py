@@ -419,12 +419,26 @@ def test_cli_and_modeling_environment_metadata(capsys):
     assert any(requirement.startswith("diffpy.srfit") for requirement in modeling_requirements)
 
     environment = (root / "environment-modeling.yml").read_text(encoding="utf-8")
+    assert environment.startswith("name: ai-pdfgui-modeling\n")
     assert "python=3.13" in environment
     assert "diffpy.srreal>=1.4,<2" in environment
     assert "diffpy.srfit>=3.2,<4" in environment
     assert "diffpy.cmi>=3.1.2,<4" in environment
     assert "diffpy.morph>=0.3.1,<1" in environment
     assert "-e .[modeling]" not in environment
+
+    docs_index = (root / "docs/source/index.rst").read_text(encoding="utf-8")
+    for document in ("ai_analysis", "modeling_engines"):
+        assert f"   {document}" in docs_index
+
+    assert (root / "docs/source/ai_analysis.rst").read_text(encoding="utf-8") == (
+        ".. include:: ../../AI_ANALYSIS.rst\n"
+    )
+    assert (root / "docs/source/modeling_engines.rst").read_text(encoding="utf-8") == (
+        ".. include:: ../../MODELING_ENGINES.rst\n"
+    )
+    manifest = (root / "MANIFEST.in").read_text(encoding="utf-8")
+    assert "include AI_ANALYSIS.rst MODELING_ENGINES.rst environment-modeling.yml" in manifest
 
 
 def test_new_python_files_follow_repository_line_limit():

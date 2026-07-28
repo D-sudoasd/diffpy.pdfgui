@@ -29,14 +29,14 @@ currently published SrReal, SrFit, and DiffPy-CMI distributions require Python
 earlier than 3.14, so the environment pins Python 3.13::
 
     micromamba create -f environment-modeling.yml
-    micromamba activate diffpy-pdfgui-modeling
+    micromamba activate ai-pdfgui-modeling
     python -m pip install . --no-deps
     ai-pdfgui-model doctor
 
 The same environment file works with Conda::
 
     conda env create -f environment-modeling.yml
-    conda activate diffpy-pdfgui-modeling
+    conda activate ai-pdfgui-modeling
     python -m pip install . --no-deps
 
 A normal source installation is used after the conda-forge environment is

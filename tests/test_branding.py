@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from diffpy.pdfgui.analysis.cli import build_parser as build_analysis_parser, main as analysis_main
+from diffpy.pdfgui.applications import pdfgui as gui_cli
 from diffpy.pdfgui.branding import (
     ANALYSIS_COMMAND,
     APPLICATION_NAME,
@@ -44,6 +45,39 @@ def test_branding_constants_and_distribution_metadata():
     configuration = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert configuration["project"]["name"] == DISTRIBUTION_NAME
     assert configuration["tool"]["pytest"]["ini_options"]["pythonpath"] == ["src"]
+
+
+def test_current_project_urls_are_separate_from_upstream_history():
+    origin = "https://github.com/D-sudoasd/diffpy.pdfgui"
+    upstream = "https://github.com/diffpy/diffpy.pdfgui/"
+    configuration = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+    assert configuration["project"]["urls"] == {
+        "Homepage": origin,
+        "Issues": f"{origin}/issues",
+        "Upstream": upstream,
+    }
+
+    readme = (ROOT / "README.rst").read_text(encoding="utf-8")
+    assert f"git clone {origin}.git" in readme
+    assert f"{origin}/actions/workflows/matrix-and-codecov-on-merge-to-main.yml" in readme
+    assert f"{origin}/pulls" in readme
+    assert f"{origin}/issues" in readme
+    assert "git clone https://github.com/diffpy/diffpy.pdfgui.git" not in readme
+    assert "codecov.io/gh/diffpy/diffpy.pdfgui" not in readme
+    assert "upstream distribution." in readme
+    assert "upstream documentation" in readme
+
+    app_source = (ROOT / "src/diffpy/pdfgui/pdfgui_app.py").read_text(encoding="utf-8")
+    assert origin in app_source
+    for relative_path in (
+        "src/diffpy/pdfgui/gui/errorreportdialog.py",
+        "src/diffpy/pdfgui/gui/errorreportdialog_control_fix.py",
+    ):
+        assert f'{origin}/issues' in (ROOT / relative_path).read_text(encoding="utf-8")
+
+    docs_index = (ROOT / "docs/source/index.rst").read_text(encoding="utf-8")
+    assert f"{origin}#installation" in docs_index
 
 
 def test_new_and_legacy_console_scripts_target_the_same_entry_points():
@@ -177,4 +211,22 @@ def test_sphinx_and_project_configuration_use_current_distribution_with_legacy_f
     assert workflows.count("project: AI-PDFgui") == 7
     assert "project: diffpy.pdfgui" not in workflows
 
-    assert sphinx["html_context"]["github_user"] == "diffpy"
+    assert sphinx["html_context"]["github_user"] == "D-sudoasd"
+
+
+@pytest.mark.parametrize(
+    ("argv0", "expected"),
+    [
+        ("/usr/local/bin/ai-pdfgui", "ai-pdfgui"),
+        (r"C:\tools\ai-pdfgui.exe", "ai-pdfgui"),
+        ("/usr/local/bin/pdfgui", "pdfgui"),
+        (r"C:\tools\pdfgui.exe", "pdfgui"),
+    ],
+)
+def test_gui_help_uses_exact_recognized_command_name(monkeypatch, capsys, argv0, expected):
+    monkeypatch.setattr(sys, "argv", [argv0])
+
+    gui_cli.usage()
+
+    usage_lines = [line for line in capsys.readouterr().out.splitlines() if line.startswith("Usage:")]
+    assert usage_lines == [f"Usage: {expected} [project.ddp]"]
