@@ -46,6 +46,8 @@ def simulate_structure_pdf(
     if not structure_path.is_file():
         raise ValueError(f"structure path is not a file: {structure_path}")
     output_path = Path(output_file).expanduser().resolve()
+    if output_path == structure_path:
+        raise ValueError("output PDF file cannot overwrite the structure input file")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
