@@ -189,6 +189,14 @@ def optimize_recipe(bundle: SrFitRecipeBundle, *, max_nfev: int = 500) -> dict[s
 def save_refined_profile(bundle: SrFitRecipeBundle, output_file: str | Path) -> str:
     """Atomically save r, observed, calculated, residual, and uncertainty columns."""
 
+    target = Path(output_file).expanduser().resolve()
+    protected_inputs = {
+        Path(bundle.structure_file).expanduser().resolve(),
+        Path(bundle.data_file).expanduser().resolve(),
+    }
+    if target in protected_inputs:
+        raise ValueError("refined profile output cannot overwrite a structure or PDF input file")
+
     contribution = getattr(bundle.recipe, bundle.contribution_name)
     profile = contribution.profile
     r_values = np.asarray(profile.x, dtype=float)
@@ -201,7 +209,6 @@ def save_refined_profile(bundle: SrFitRecipeBundle, output_file: str | Path) -> 
         uncertainty = np.full_like(r_values, np.nan)
     table = np.column_stack((r_values, observed, calculated, observed - calculated, uncertainty))
 
-    target = Path(output_file).expanduser().resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary_name = ""
     try:
