@@ -31,7 +31,7 @@ from diffpy.pdfgui.modeling.srreal_adapter import (
 
 def test_registry_detects_packages_external_engines_and_python_gates():
     versions = {
-        "diffpy.pdfgui": "4.0",
+        "AI-PDFgui": "4.0",
         "diffpy.pdffit2": "1.6",
         "diffpy.structure": "3.4",
         "diffpy.srreal": "1.4",
@@ -57,6 +57,8 @@ def test_registry_detects_packages_external_engines_and_python_gates():
         python_version=(3, 13),
     )
     mapped = backend_map(statuses)
+    assert mapped["pdfgui"].display_name == "AI-PDFgui"
+    assert mapped["pdfgui"].version == "4.0"
     assert mapped["srreal"].state == "available"
     assert mapped["srfit"].license_name == "LicenseRef-diffpy (BSD-compatible)"
     assert "environment-modeling.yml" in mapped["srreal"].install_hint
@@ -411,6 +413,7 @@ def test_cli_and_modeling_environment_metadata(capsys):
 
     configuration = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     assert configuration["project"]["scripts"]["pdfgui-model"].endswith("modeling.cli:main")
+    assert configuration["project"]["scripts"]["ai-pdfgui-model"].endswith("modeling.cli:main")
     modeling_requirements = configuration["project"]["optional-dependencies"]["modeling"]
     assert any(requirement.startswith("diffpy.structure") for requirement in modeling_requirements)
     assert any(requirement.startswith("diffpy.srfit") for requirement in modeling_requirements)

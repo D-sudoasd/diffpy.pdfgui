@@ -25,6 +25,8 @@ import webbrowser
 import wx
 import wx.html
 
+from diffpy.pdfgui.branding import APPLICATION_NAME
+
 # Constants ------------------------------------------------------------------
 
 ISSUESTRACKER = "https://github.com/diffpy/diffpy.pdfgui/issues"
@@ -36,26 +38,26 @@ _MSG_TRAILER = """
 You can view current bug reports and feature requests at
 <a href="{issues}">{issues}</a>.
 </p><p>
-Discuss PDFgui and learn about new developments and features at
+Discuss {application_name} and learn about new developments and features at
 <a href="{mlist}">{mlist}</a>.
 </p>
 """.format(
-    issues=ISSUESTRACKER, mlist=USERSMAILINGLIST
+    application_name=APPLICATION_NAME, issues=ISSUESTRACKER, mlist=USERSMAILINGLIST
 )
 
 _MSG_FEATURE_REQUEST = (
-    """
+    f"""
 <p>
-Share you thoughts about PDFgui!
+Share your thoughts about {APPLICATION_NAME}!
 </p>
 """
     + _MSG_TRAILER
 )
 
 _MSG_ERROR_REPORT = (
-    """
+    f"""
 <p>
-PDFgui has encountered a problem.  We are sorry for the inconvenience.
+{APPLICATION_NAME} has encountered a problem.  We are sorry for the inconvenience.
 </p><p>
 """
     + _MSG_TRAILER
@@ -91,7 +93,7 @@ class ErrorReportDialog(wx.Dialog):
 
     def __set_properties(self):
         # begin wxGlade: ErrorReportDialog.__set_properties
-        self.SetTitle("Problem Report for PDFgui")
+        self.SetTitle(f"Problem Report for {APPLICATION_NAME}")
         self.SetSize((540, 600))
         # end wxGlade
 
@@ -136,7 +138,7 @@ class ErrorReportDialog(wx.Dialog):
             self.SetSize((540, 200))
             self.errorReport = False
         else:
-            self.SetTitle("Problem Report for PDFgui")
+            self.SetTitle(f"Problem Report for {APPLICATION_NAME}")
             self.label_header.SetPage(_MSG_ERROR_REPORT)
             self.label_header.SetBackgroundColour("")
             self.text_ctrl_log.Show()

@@ -2,9 +2,9 @@
 |title|
 #######
 
-.. |title| replace:: diffpy.pdfgui documentation
+.. |title| replace:: AI-PDFgui documentation
 
-``diffpy.pdfgui`` - Graphical user interface program for structure refinements to the atomic pair distribution function.
+AI-PDFgui - Graphical user interface program for structure refinements to the atomic pair distribution function.
 
 | Software version |release|
 | Last updated |today|.
@@ -14,14 +14,18 @@ Getting started
 ===============
 
 For users who do not have the expertise or necessity for command
-line analysis, PDFgui is a convenient and easy to use graphical front
+line analysis, AI-PDFgui is a convenient and easy to use graphical front
 end for the PDFfit2 refinement program. It is capable of full-profile
 fitting of the atomic pair distribution function (PDF) derived from x-ray
 or neutron diffraction data and comes with built in graphical and structure
 visualization capabilities.
 
-PDFgui is a friendly interface to the PDFfit2 refinement engine, with many
+AI-PDFgui is a friendly interface to the PDFfit2 refinement engine, with many
 powerful extensions. To get started, follow the :ref:`tutorial`.
+
+
+The Python import namespace remains ``diffpy.pdfgui`` and legacy command names
+remain available for existing workflows.
 
 =======
 Authors

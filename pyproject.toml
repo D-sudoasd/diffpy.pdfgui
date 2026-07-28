@@ -3,7 +3,7 @@ requires = ["setuptools>=62.0", "setuptools-git-versioning>=2.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "diffpy.pdfgui"
+name = "AI-PDFgui"
 dynamic=['version', 'dependencies']
 authors = [
   {name='Simon Billinge', email='sbillinge@ucsb.edu'},
@@ -59,6 +59,9 @@ exclude = []  # exclude packages matching these glob patterns (empty by default)
 namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project.scripts]
+ai-pdfgui = "diffpy.pdfgui.applications.pdfgui:main"
+ai-pdfgui-analyze = "diffpy.pdfgui.analysis.cli:main"
+ai-pdfgui-model = "diffpy.pdfgui.modeling.cli:main"
 pdfgui = "diffpy.pdfgui.applications.pdfgui:main"
 pdfgui-analyze = "diffpy.pdfgui.analysis.cli:main"
 pdfgui-model = "diffpy.pdfgui.modeling.cli:main"
@@ -75,6 +78,9 @@ skip = "*.cif,*.dat"
 recursive = true
 wrap-summaries = 72
 wrap-descriptions = 72
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
 
 [tool.black]
 line-length = 115

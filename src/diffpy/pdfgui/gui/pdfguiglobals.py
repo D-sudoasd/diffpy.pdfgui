@@ -17,10 +17,11 @@
 from importlib.resources import files
 from pathlib import Path
 
+from diffpy.pdfgui.branding import APPLICATION_NAME
 from diffpy.pdfgui.gui import debugoptions
 
 # Name of the program
-name = "PDFgui"
+name = APPLICATION_NAME
 # Maximum number of files to be remembered
 MAXMRU = 5
 # The location of the configuration file

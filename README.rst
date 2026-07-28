@@ -1,7 +1,7 @@
 |Icon| |title|_
 ===============
 
-.. |title| replace:: diffpy.pdfgui
+.. |title| replace:: AI-PDFgui
 .. _title: https://diffpy.github.io/diffpy.pdfgui
 
 .. |Icon| image:: https://avatars.githubusercontent.com/diffpy
@@ -39,24 +39,29 @@
 Graphical user interface program for structure refinements to the atomic pair distribution function.
 
 For users who do not have the expertise or necessity for command
-line analysis, PDFgui is a convenient and easy to use graphical front
+line analysis, AI-PDFgui is a convenient and easy to use graphical front
 end for the PDFfit2 refinement program. It is capable of full-profile
 fitting of the atomic pair distribution function (PDF) derived from x-ray
 or neutron diffraction data and comes with built in graphical and structure
 visualization capabilities.
 
-PDFgui is a friendly interface to the PDFfit2 refinement engine, with many
+AI-PDFgui is a friendly interface to the PDFfit2 refinement engine, with many
 powerful extensions.  To get started, please open the manual from the
 help menu and follow the tutorial instructions. A detailed description
 is available in `this paper <http://dx.doi.org/10.1088/0953-8984/19/33/335219>`_.
 
-For more information about diffpy.pdfgui, please consult our
+For more information about AI-PDFgui, please consult our
 `online documentation <https://diffpy.github.io/diffpy.pdfgui>`_.
+
+
+AI-PDFgui preserves the ``diffpy.pdfgui`` Python import namespace, project data
+formats, and the legacy ``pdfgui``, ``pdfgui-analyze``, and ``pdfgui-model``
+commands. New installations also provide matching ``ai-pdfgui`` aliases.
 
 Citation
 --------
 
-If you use diffpy.pdfgui in a scientific publication, we would like you to
+If you use AI-PDFgui in a scientific publication, we would like you to
 cite this package as
 
         C L Farrow, P Juhas, J W Liu, D Bryndin, E S Božin,
@@ -100,7 +105,7 @@ and run the following ::
 
 This package also provides command-line utilities. To check the software has been installed correctly, type ::
 
-        diffpy.pdfgui --version
+        ai-pdfgui --version
 
 You can also type the following command to verify the installation. ::
 

@@ -15,13 +15,18 @@
 
 import sys
 import time
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version as metadata_version
 from pathlib import Path
 
-# Attempt to import the version dynamically from GitHub tag.
-try:
-    fullversion = version("diffpy.pdfgui")
-except Exception:
+# Prefer current distribution metadata while supporting legacy installations.
+fullversion = None
+for distribution_name in ("AI-PDFgui", "diffpy.pdfgui"):
+    try:
+        fullversion = metadata_version(distribution_name)
+    except PackageNotFoundError:
+        continue
+    break
+if fullversion is None:
     fullversion = "No version found. The correct version will appear in the released version."  # noqa: E501
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -68,7 +73,7 @@ source_suffix = [".rst", ".md"]
 master_doc = "index"
 
 # General information about the project.
-project = "diffpy.pdfgui"
+project = "AI-PDFgui"
 copyright = "%Y, The Trustees of Columbia University in the City of New York"
 
 # For sphinx_copybutton extension.
@@ -161,10 +166,10 @@ html_theme_options = {
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-# html_title = None
+html_title = "AI-PDFgui Documentation"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-# html_short_title = None
+html_short_title = "AI-PDFgui"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -227,7 +232,7 @@ html_theme_options = {
 # html_file_suffix = None
 
 # Output file base name for HTML help builder.
-basename = "diffpy.pdfgui".replace(" ", "").replace(".", "")
+basename = "AI-PDFgui"
 htmlhelp_basename = basename + "doc"
 
 
@@ -248,8 +253,8 @@ latex_elements = {
 latex_documents = [
     (
         "index",
-        "diffpy.pdfgui.tex",
-        "diffpy.pdfgui Documentation",
+        "AI-PDFgui.tex",
+        "AI-PDFgui Documentation",
         ab_authors,
         "manual",
     ),
@@ -283,8 +288,8 @@ latex_documents = [
 man_pages = [
     (
         "index",
-        "diffpy.pdfgui",
-        "diffpy.pdfgui Documentation",
+        "AI-PDFgui",
+        "AI-PDFgui Documentation",
         ab_authors,
         1,
     )
@@ -302,10 +307,10 @@ man_pages = [
 texinfo_documents = [
     (
         "index",
-        "diffpy.pdfgui",
-        "diffpy.pdfgui Documentation",
+        "AI-PDFgui",
+        "AI-PDFgui Documentation",
         ab_authors,
-        "diffpy.pdfgui",
+        "AI-PDFgui",
         "One line description of project.",
         "Miscellaneous",
     ),

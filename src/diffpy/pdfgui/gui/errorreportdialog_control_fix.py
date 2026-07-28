@@ -24,6 +24,7 @@ import re
 import wx
 import wx.html
 
+from diffpy.pdfgui.branding import APPLICATION_NAME
 from .errorreportdialog import ErrorReportDialog
 
 # Constants ------------------------------------------------------------------
@@ -33,9 +34,9 @@ USERSMAILINGLIST = "https://groups.google.com/d/forum/diffpy-users"
 _WEBSEARCHURL = "https://www.google.com/search?q={query}"
 
 
-_MSG_ERROR_REPORT = """
+_MSG_ERROR_REPORT = f"""
 <p>
-Currently the control-select is not supported in Python3 PDFgui. We will fix this issue in a future version.
+Currently the control-select is not supported in {APPLICATION_NAME}. We will fix this issue in a future version.
 Please use shift-select for multiple cells instead.
 </p><p>
 """
@@ -70,7 +71,7 @@ class ErrorReportDialogControlFix(wx.Dialog):
 
     def __set_properties(self):
         # begin wxGlade: ErrorReportDialog.__set_properties
-        self.SetTitle("Problem Report for PDFgui")
+        self.SetTitle(f"Problem Report for {APPLICATION_NAME}")
         self.SetSize((540, 200))
         # end wxGlade
 
@@ -105,7 +106,7 @@ class ErrorReportDialogControlFix(wx.Dialog):
     def ShowModal(self):
         # there are 2 modes: error report and feature request
 
-        self.SetTitle("Problem Report for PDFgui")
+        self.SetTitle(f"Problem Report for {APPLICATION_NAME}")
         self.label_header.SetPage(_MSG_ERROR_REPORT)
         self.label_header.SetBackgroundColour("")
         # self.text_ctrl_log.Show()

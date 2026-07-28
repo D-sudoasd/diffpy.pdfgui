@@ -24,6 +24,7 @@ import wx
 import wx.aui
 import wx.lib.newevent
 
+from diffpy.pdfgui.branding import APPLICATION_NAME
 from diffpy.pdfgui.control import structureviewer
 from diffpy.pdfgui.control.controlerrors import ControlError, ControlFileError
 from diffpy.pdfgui.control.pdfguicontrol import pdfguicontrol
@@ -633,7 +634,9 @@ class MainFrame(wx.Frame):
             wx.ITEM_NORMAL,
         )
         self.helpMenu.Append(self.requestItem)
-        self.communityItem = wx.MenuItem(self.helpMenu, wx.NewIdRef(), "PDFgui Community", "", wx.ITEM_NORMAL)
+        self.communityItem = wx.MenuItem(
+            self.helpMenu, wx.NewIdRef(), f"{APPLICATION_NAME} Community", "", wx.ITEM_NORMAL
+        )
         self.helpMenu.Append(self.communityItem)
         self.aboutItem = wx.MenuItem(self.helpMenu, wx.NewIdRef(), "&About", "", wx.ITEM_NORMAL)
         self.helpMenu.Append(self.aboutItem)
@@ -2208,7 +2211,7 @@ class MainFrame(wx.Frame):
             dir, filename = os.path.split(self.fullpath)
             if not dir:
                 dir = self.workpath
-            matchstring = "PDFgui project files (*.ddp)|*.ddp;*.ddp3"
+            matchstring = f"{APPLICATION_NAME} project files (*.ddp)|*.ddp;*.ddp3"
             d = wx.FileDialog(None, "Choose a file", dir, "", matchstring)
             if d.ShowModal() == wx.ID_OK:
                 fullpath = d.GetPath()
@@ -2253,7 +2256,7 @@ class MainFrame(wx.Frame):
         # events of the other panels.
         self.treeCtrlMain.SetFocus()
 
-        matchstring = "PDFgui project files (*.ddp3)|*.ddp3|All Files|*"
+        matchstring = f"{APPLICATION_NAME} project files (*.ddp3)|*.ddp3|All Files|*"
         dir, filename = os.path.split(self.fullpath)
         if not dir:
             dir = self.workpath
@@ -2332,7 +2335,7 @@ class MainFrame(wx.Frame):
         cdata = self.treeCtrlMain.GetControlData(node)
         name = self.treeCtrlMain.GetItemText(node)
         basename = ".".join(name.split(".")[:-1]) or name
-        matchstring = "PDFgui results files (*.res)|*.res|All Files|*"
+        matchstring = f"{APPLICATION_NAME} results files (*.res)|*.res|All Files|*"
         d = wx.FileDialog(
             None,
             "Save as...",

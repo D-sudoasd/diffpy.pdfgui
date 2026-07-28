@@ -20,7 +20,18 @@
 # obtain version information
 from importlib.metadata import PackageNotFoundError, version
 
-try:
-    __version__ = version("diffpy.pdfgui")
-except PackageNotFoundError:
-    __version__ = "unknown"
+from diffpy.pdfgui.branding import DISTRIBUTION_NAMES
+
+
+def distribution_version(version_getter=version):
+    """Return installed AI-PDFgui version with legacy metadata fallback."""
+
+    for distribution_name in DISTRIBUTION_NAMES:
+        try:
+            return version_getter(distribution_name)
+        except PackageNotFoundError:
+            continue
+    return "unknown"
+
+
+__version__ = distribution_version()

@@ -9,6 +9,6 @@ jobs:
   docs:
     uses: scikit-package/release-scripts/.github/workflows/_publish-docs-on-release.yml@v0
     with:
-      project: diffpy.pdfgui
+      project: AI-PDFgui
       c_extension: false
       headless: true

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from diffpy.pdfgui.branding import APPLICATION_NAME
 from diffpy.pdfgui.analysis.models import PDFAnalysis
 
 _MAX_AI_DEPTH = 5
@@ -159,7 +160,8 @@ Do not assign phases, coordination environments, bond identities, or defect mech
 or question provides an explicit structural basis. Treat detected positive and negative features as signal \
 features,
 not automatic atom-pair assignments. When discussing residuals, identify the relevant r interval and propose checks
-that can be performed in PDFgui. State which additional experimental or model information would be required for any
+that can be performed in {APPLICATION_NAME}. State which additional experimental or model information would be
+required for any
 stronger conclusion. Respond in {safe_language}.
 
 Computed diagnostics:

@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from diffpy.pdfgui.branding import command_name, LEGACY_MODELING_COMMAND, MODELING_COMMAND
 from diffpy.pdfgui.modeling.models import ModelingRequest
 from diffpy.pdfgui.modeling.morph_adapter import MorphConfig, compare_pdf_files
 from diffpy.pdfgui.modeling.planner import build_modeling_ai_prompt, plan_modeling
@@ -36,7 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the top-level parser and all modeling subcommands."""
 
     parser = argparse.ArgumentParser(
-        prog="pdfgui-model",
+        prog=command_name(sys.argv[0], MODELING_COMMAND, LEGACY_MODELING_COMMAND),
         description="Inspect, plan, and run optional atomic PDF modeling backends.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -133,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return int(args.handler(args))
     except (OSError, ValueError, RuntimeError) as error:
-        print(f"pdfgui-model: {error}", file=sys.stderr)
+        print(f"{parser.prog}: {error}", file=sys.stderr)
         return 2
 
 

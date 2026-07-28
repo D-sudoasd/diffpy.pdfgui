@@ -9,6 +9,7 @@ import sys
 from collections.abc import Callable, Mapping
 from pathlib import Path
 
+from diffpy.pdfgui.branding import APPLICATION_NAME, DISTRIBUTION_NAMES
 from diffpy.pdfgui.modeling.models import BackendStatus
 
 VersionGetter = Callable[[str], str]
@@ -116,10 +117,17 @@ def backend_map(statuses: tuple[BackendStatus, ...] | None = None) -> dict[str, 
 
 
 def _pdfgui_status(version_getter: VersionGetter) -> BackendStatus:
-    version = _safe_version("diffpy.pdfgui", version_getter) or "development"
+    version = next(
+        (
+            detected_version
+            for distribution in DISTRIBUTION_NAMES
+            if (detected_version := _safe_version(distribution, version_getter)) is not None
+        ),
+        "development",
+    )
     return BackendStatus(
         backend_id="pdfgui",
-        display_name="PDFgui",
+        display_name=APPLICATION_NAME,
         state="available",
         version=version,
         capabilities=("small_box_refinement", "project_management", "sequential_refinement"),

@@ -1,7 +1,7 @@
 Unified PDF modeling backends
 =============================
 
-PDFgui retains its PDFfit2 small-box refinement workflow and adds one interface
+AI-PDFgui retains its PDFfit2 small-box refinement workflow and adds one interface
 for optional simulation, custom refinement, model-independent comparison, and
 large-box modeling tools.
 
@@ -14,13 +14,16 @@ The integration consists of four parts:
 * in-process adapters for SrReal, SrFit, and diffpy.morph;
 * process-isolated adapters for separately installed RMCProfile and fullrmc.
 
-The planner does not alter a PDFgui project or start a refinement. A calculation
+The planner does not alter an AI-PDFgui project or start a refinement. A calculation
 runs only after an explicit GUI or command-line action.
 
 Installation
 ------------
 
 Use the supplied conda-forge environment for the complete DiffPy modeling stack.
+The examples use the new command alias; ``pdfgui-model`` remains available for
+existing scripts.
+
 It resolves compiled libraries such as ``libdiffpy`` together with SrReal. The
 currently published SrReal, SrFit, and DiffPy-CMI distributions require Python
 earlier than 3.14, so the environment pins Python 3.13::
@@ -28,7 +31,7 @@ earlier than 3.14, so the environment pins Python 3.13::
     micromamba create -f environment-modeling.yml
     micromamba activate diffpy-pdfgui-modeling
     python -m pip install . --no-deps
-    pdfgui-model doctor
+    ai-pdfgui-model doctor
 
 The same environment file works with Conda::
 
@@ -57,8 +60,8 @@ The environment installs these components from conda-forge:
 the published wheels and required runtime libraries are already available. The
 conda-forge environment is the tested complete installation path.
 
-On Python 3.14, ``pdfgui-model doctor`` reports SrReal, SrFit, and DiffPy-CMI as
-unsupported and points to the Python 3.13 modeling environment. PDFgui itself
+On Python 3.14, ``ai-pdfgui-model doctor`` reports SrReal, SrFit, and DiffPy-CMI as
+unsupported and points to the Python 3.13 modeling environment. AI-PDFgui itself
 continues to use the Python range declared in ``pyproject.toml``.
 
 RMCProfile and fullrmc
@@ -85,8 +88,8 @@ Backend status
 
 Inspect the active environment with::
 
-    pdfgui-model doctor
-    pdfgui-model doctor --json --output backend-status.json
+    ai-pdfgui-model doctor
+    ai-pdfgui-model doctor --json --output backend-status.json
 
 The stable backend identifiers are:
 
@@ -94,7 +97,7 @@ The stable backend identifiers are:
 Identifier        Integration                     Main role
 ================  ==============================  ==============================
 ``pdfgui``        built in                        small-box PDF refinement
-``pdffit2``       in-process dependency           PDFgui refinement engine
+``pdffit2``       in-process dependency           AI-PDFgui refinement engine
 ``structure``     optional Python package         structure I/O and symmetry
 ``srreal``        optional Python package         periodic and Debye simulation
 ``srfit``         optional Python package         custom constrained refinement
@@ -109,7 +112,7 @@ Workflow planning
 
 Generate a staged plan before running a model::
 
-    pdfgui-model plan \
+    ai-pdfgui-model plan \
         --sample-kind nanocrystalline \
         --goal auto \
         --structure model.cif \
@@ -117,7 +120,7 @@ Generate a staged plan before running a model::
 
 The deterministic selection rules are:
 
-* one crystalline data set starts with PDFgui and PDFfit2;
+* one crystalline data set starts with AI-PDFgui and PDFfit2;
 * multiple data sets or custom constraints select DiffPy-CMI or SrFit;
 * direct structure-to-PDF calculation selects SrReal;
 * related PDFs requiring scale, stretch, or broadening comparison select
@@ -129,9 +132,9 @@ The deterministic selection rules are:
 
 The planner can emit JSON or a bounded AI explanation prompt::
 
-    pdfgui-model plan --sample-kind amorphous --goal large_box_modeling --json
+    ai-pdfgui-model plan --sample-kind amorphous --goal large_box_modeling --json
 
-    pdfgui-model plan \
+    ai-pdfgui-model plan \
         --sample-kind nanocrystalline \
         --structure model.cif \
         --data sample.gr \
@@ -148,7 +151,7 @@ SrReal simulation
 
 Periodic crystal calculation::
 
-    pdfgui-model simulate model.cif calculated.gr \
+    ai-pdfgui-model simulate model.cif calculated.gr \
         --mode periodic \
         --stype X \
         --qmax 25 \
@@ -160,7 +163,7 @@ Periodic crystal calculation::
 
 Debye calculation for a molecular or non-periodic nanoparticle model::
 
-    pdfgui-model simulate cluster.xyz cluster.gr \
+    ai-pdfgui-model simulate cluster.xyz cluster.gr \
         --mode debye \
         --stype X \
         --qmax 25 \
@@ -175,7 +178,7 @@ SrFit refinement
 
 Run a controlled single-phase recipe::
 
-    pdfgui-model srfit model.cif sample.gr refined-profile.dat \
+    ai-pdfgui-model srfit model.cif sample.gr refined-profile.dat \
         --space-group "Fm-3m" \
         --rmax 20 \
         --max-nfev 1000 \
@@ -200,7 +203,7 @@ Model-independent comparison
 
 Compare two related PDFs with diffpy.morph::
 
-    pdfgui-model morph source.gr target.gr morphed.gr \
+    ai-pdfgui-model morph source.gr target.gr morphed.gr \
         --scale 1.0 \
         --stretch 0.0 \
         --smear 0.0 \
@@ -218,12 +221,12 @@ External large-box runs
 After configuring the external engine, pass its native argument list after
 ``--``::
 
-    pdfgui-model external rmcprofile \
+    ai-pdfgui-model external rmcprofile \
         --workdir rmc-run \
         --timeout 21600 \
         -- input.cfg
 
-    pdfgui-model external fullrmc \
+    ai-pdfgui-model external fullrmc \
         --workdir fullrmc-run \
         --timeout 21600 \
         -- driver.py
@@ -234,7 +237,7 @@ No command string is evaluated by a shell. Environment overrides use repeated
 Graphical interface
 -------------------
 
-The PDFgui ``Analysis`` menu contains:
+The AI-PDFgui ``Analysis`` menu contains:
 
 * ``Modeling engine status`` for package, version, capability, license, and
   external-executable information;
@@ -263,7 +266,7 @@ and inspect these records for every run:
 License and distribution boundaries
 -----------------------------------
 
-PDFgui, PDFfit2, diffpy.structure, diffpy.srreal, DiffPy-CMI, and diffpy.morph
+AI-PDFgui, PDFfit2, diffpy.structure, diffpy.srreal, DiffPy-CMI, and diffpy.morph
 use their published BSD license metadata. SrFit is labeled
 ``LicenseRef-diffpy (BSD-compatible)`` to preserve the upstream package label and
 its published BSD-compatible description. fullrmc is registered as

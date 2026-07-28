@@ -11,13 +11,14 @@ from diffpy.pdfgui.analysis.core import analyze_pdf_data
 from diffpy.pdfgui.analysis.io import load_pdf_data
 from diffpy.pdfgui.analysis.models import AnalysisConfig
 from diffpy.pdfgui.analysis.report import analysis_to_json, analysis_to_markdown, build_ai_prompt
+from diffpy.pdfgui.branding import ANALYSIS_COMMAND, command_name, LEGACY_ANALYSIS_COMMAND
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Create the command-line argument parser."""
 
     parser = argparse.ArgumentParser(
-        prog="pdfgui-analyze",
+        prog=command_name(sys.argv[0], ANALYSIS_COMMAND, LEGACY_ANALYSIS_COMMAND),
         description="Analyze atomic pair distribution function data and optional fit residuals.",
     )
     parser.add_argument("files", nargs="+", type=Path, help="PDF data file(s) to analyze")
@@ -101,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             analysis = analyze_pdf_data(series, config)
         except (OSError, ValueError) as error:
-            print(f"pdfgui-analyze: {filename}: {error}", file=sys.stderr)
+            print(f"{parser.prog}: {filename}: {error}", file=sys.stderr)
             return 2
         text = analysis_to_json(analysis) if args.format == "json" else analysis_to_markdown(analysis)
         if args.include_ai_prompt and args.format == "markdown":
@@ -139,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
             target = args.output / f"{base_name}{suffix}{extension}"
             target.write_text(text, encoding="utf-8")
     except OSError as error:
-        print(f"pdfgui-analyze: could not write output: {error}", file=sys.stderr)
+        print(f"{parser.prog}: could not write output: {error}", file=sys.stderr)
         return 2
     return 0
 

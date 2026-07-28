@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 import wx
 import wx.lib.agw.hyperlink
 
+from diffpy.pdfgui.branding import APPLICATION_NAME
 from diffpy.pdfgui.gui.pdfguiglobals import iconpath
 from diffpy.pdfgui.version import __version__
 
@@ -88,7 +89,7 @@ class DialogAbout(wx.Dialog):
         wx.Dialog.__init__(self, *args, **kwds)
         self.SetSize((600, 595))
         self.bitmap_logo = wx.StaticBitmap(self, wx.ID_ANY, wx.Bitmap(iconpath("logo.png")))
-        self.label_title = wx.StaticText(self, wx.ID_ANY, "PDFgui")
+        self.label_title = wx.StaticText(self, wx.ID_ANY, APPLICATION_NAME)
         self.label_version = wx.StaticText(self, wx.ID_ANY, "")
         self.label_build = wx.StaticText(self, wx.ID_ANY, "Build:")
         self.label_svnrevision = wx.StaticText(self, wx.ID_ANY, "")
