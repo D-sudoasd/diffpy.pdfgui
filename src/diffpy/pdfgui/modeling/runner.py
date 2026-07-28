@@ -6,13 +6,16 @@ import math
 import os
 import re
 import subprocess
+import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import BinaryIO
 
 from diffpy.pdfgui.modeling.models import BackendStatus, ExecutionResult
 
-_MAX_OUTPUT_CHARACTERS = 4 * 1024 * 1024
+_MAX_OUTPUT_BYTES = 4 * 1024 * 1024
 _ENVIRONMENT_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_TRUNCATION_SUFFIX = b"\n<output truncated by PDFgui>\n"
 
 
 class BackendExecutionError(RuntimeError):
@@ -34,45 +37,37 @@ def run_external_backend(
     seconds = _validated_timeout(timeout)
     environment = _validated_environment(extra_environment)
     try:
-        completed = subprocess.run(
-            command,
-            cwd=cwd,
-            env=environment,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=seconds,
-            check=False,
-            shell=False,
-        )
-        stdout, stdout_truncated = _truncate(completed.stdout)
-        stderr, stderr_truncated = _truncate(completed.stderr)
-        return ExecutionResult(
-            backend_id=status.backend_id,
-            command=tuple(command),
-            working_directory=cwd,
-            return_code=completed.returncode,
-            stdout=stdout,
-            stderr=stderr,
-            timed_out=False,
-            output_truncated=stdout_truncated or stderr_truncated,
-        )
-    except subprocess.TimeoutExpired as error:
-        stdout, stdout_truncated = _truncate(_decode_timeout_stream(error.stdout))
-        stderr, stderr_truncated = _truncate(_decode_timeout_stream(error.stderr))
-        return ExecutionResult(
-            backend_id=status.backend_id,
-            command=tuple(command),
-            working_directory=cwd,
-            return_code=-9,
-            stdout=stdout,
-            stderr=stderr,
-            timed_out=True,
-            output_truncated=stdout_truncated or stderr_truncated,
-        )
+        with tempfile.TemporaryFile() as stdout_stream, tempfile.TemporaryFile() as stderr_stream:
+            try:
+                completed = subprocess.run(
+                    command,
+                    cwd=cwd,
+                    env=environment,
+                    stdout=stdout_stream,
+                    stderr=stderr_stream,
+                    timeout=seconds,
+                    check=False,
+                    shell=False,
+                )
+                return_code = completed.returncode
+                timed_out = False
+            except subprocess.TimeoutExpired:
+                return_code = -9
+                timed_out = True
+            stdout, stdout_truncated = _read_bounded_output(stdout_stream)
+            stderr, stderr_truncated = _read_bounded_output(stderr_stream)
     except (FileNotFoundError, PermissionError, OSError) as error:
         raise BackendExecutionError(f"could not launch {status.display_name}: {error}") from error
+    return ExecutionResult(
+        backend_id=status.backend_id,
+        command=tuple(command),
+        working_directory=cwd,
+        return_code=return_code,
+        stdout=stdout,
+        stderr=stderr,
+        timed_out=timed_out,
+        output_truncated=stdout_truncated or stderr_truncated,
+    )
 
 
 def _build_command(status: BackendStatus, arguments: Sequence[str]) -> list[str]:
@@ -88,10 +83,15 @@ def _build_command(status: BackendStatus, arguments: Sequence[str]) -> list[str]
         raise BackendExecutionError(f"backend {status.display_name} is not available")
     command = [executable]
     for argument in arguments:
-        text = os.fspath(argument)
-        if "\x00" in text:
+        try:
+            path_value = os.fspath(argument)
+        except TypeError as error:
+            raise BackendExecutionError("command arguments must be strings or paths") from error
+        if isinstance(path_value, bytes):
+            raise BackendExecutionError("command arguments must use text, not bytes")
+        if "\x00" in path_value:
             raise BackendExecutionError("command arguments cannot contain null bytes")
-        command.append(text)
+        command.append(path_value)
     if len(command) == 1:
         raise BackendExecutionError("external backend arguments are required")
     return command
@@ -135,16 +135,12 @@ def _validated_environment(extra: Mapping[str, str] | None) -> dict[str, str]:
     return environment
 
 
-def _decode_timeout_stream(value: bytes | str | None) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, bytes):
-        return value.decode("utf-8", errors="replace")
-    return value
-
-
-def _truncate(value: str) -> tuple[str, bool]:
-    if len(value) <= _MAX_OUTPUT_CHARACTERS:
-        return value, False
-    suffix = "\n<output truncated by PDFgui>\n"
-    return value[: _MAX_OUTPUT_CHARACTERS - len(suffix)] + suffix, True
+def _read_bounded_output(stream: BinaryIO) -> tuple[str, bool]:
+    stream.flush()
+    stream.seek(0)
+    payload = stream.read(_MAX_OUTPUT_BYTES + 1)
+    truncated = len(payload) > _MAX_OUTPUT_BYTES
+    if truncated:
+        keep = _MAX_OUTPUT_BYTES - len(_TRUNCATION_SUFFIX)
+        payload = payload[:keep] + _TRUNCATION_SUFFIX
+    return payload.decode("utf-8", errors="replace"), truncated
