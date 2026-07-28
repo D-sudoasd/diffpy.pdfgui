@@ -14,6 +14,11 @@ from diffpy.pdfgui.modeling.models import BackendStatus
 VersionGetter = Callable[[str], str]
 WhichFunction = Callable[[str], str | None]
 
+_MODELING_ENV_HINT = (
+    "Create the conda-forge environment from environment-modeling.yml, then install "
+    "the project with 'python -m pip install -e . --no-deps'."
+)
+
 
 def detect_backends(
     *,
@@ -34,7 +39,7 @@ def detect_backends(
             distribution="diffpy.pdffit2",
             capabilities=("small_box_refinement", "crystalline_pdf", "pdf_simulation"),
             license_name="BSD-3-Clause",
-            install_hint="python -m pip install diffpy.pdffit2",
+            install_hint="conda install -c conda-forge diffpy.pdffit2",
             version_getter=version_getter,
         ),
         _package_status(
@@ -43,7 +48,7 @@ def detect_backends(
             distribution="diffpy.structure",
             capabilities=("structure_io", "symmetry", "coordinate_conversion"),
             license_name="BSD-3-Clause",
-            install_hint='python -m pip install "diffpy.structure>=3.4,<4"',
+            install_hint="conda install -c conda-forge diffpy.structure",
             version_getter=version_getter,
         ),
         _version_gated_package_status(
@@ -52,7 +57,7 @@ def detect_backends(
             distribution="diffpy.srreal",
             capabilities=("pdf_simulation", "debye_pdf", "bond_valence", "pair_distances"),
             license_name="BSD-3-Clause",
-            install_hint='python -m pip install "diffpy.srreal>=1.4,<2"',
+            install_hint=_MODELING_ENV_HINT,
             version_getter=version_getter,
             python_version=pyversion,
             maximum_exclusive=(3, 14),
@@ -61,9 +66,14 @@ def detect_backends(
             backend_id="srfit",
             display_name="diffpy.srfit",
             distribution="diffpy.srfit",
-            capabilities=("custom_refinement", "multi_dataset_refinement", "constraints", "restraints"),
-            license_name="Free To Use But Restricted",
-            install_hint='python -m pip install "diffpy.srfit>=3.2,<4"',
+            capabilities=(
+                "custom_refinement",
+                "multi_dataset_refinement",
+                "constraints",
+                "restraints",
+            ),
+            license_name="LicenseRef-diffpy (BSD-compatible)",
+            install_hint=_MODELING_ENV_HINT,
             version_getter=version_getter,
             python_version=pyversion,
             maximum_exclusive=(3, 14),
@@ -74,7 +84,7 @@ def detect_backends(
             distribution="diffpy.cmi",
             capabilities=("complex_modeling", "multi_modal_refinement", "workflow_packs"),
             license_name="BSD-3-Clause",
-            install_hint='python -m pip install "diffpy.cmi>=3.1.2,<4"',
+            install_hint=_MODELING_ENV_HINT,
             version_getter=version_getter,
             python_version=pyversion,
             maximum_exclusive=(3, 14),
@@ -83,9 +93,13 @@ def detect_backends(
             backend_id="diffpy-morph",
             display_name="diffpy.morph",
             distribution="diffpy.morph",
-            capabilities=("model_independent_comparison", "scale_stretch_smear", "series_screening"),
+            capabilities=(
+                "model_independent_comparison",
+                "scale_stretch_smear",
+                "series_screening",
+            ),
             license_name="BSD-3-Clause",
-            install_hint='python -m pip install "diffpy.morph>=0.4,<1"',
+            install_hint="conda install -c conda-forge diffpy.morph",
             version_getter=version_getter,
         ),
         _rmcprofile_status(env, which),
@@ -177,9 +191,7 @@ def _version_gated_package_status(
                 f"The published package metadata requires Python earlier than {maximum_text}; "
                 f"the current interpreter is {python_version[0]}.{python_version[1]}."
             ),
-            install_hint=(
-                "Create a Python 3.13 modeling environment and install the project modeling dependencies there."
-            ),
+            install_hint=install_hint,
         )
     return _package_status(
         backend_id=backend_id,
